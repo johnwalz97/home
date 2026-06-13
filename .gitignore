@@ -1,0 +1,10 @@
+# cached NWS API responses
+data/cache/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# scratch
+err.log
