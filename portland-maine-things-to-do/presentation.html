@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portland, Maine — Things To Do</title>
+<style>
+  :root{
+    --navy:#0b2a3a; --navy2:#10384c; --teal:#1f7a8c; --sky:#bfd7e0;
+    --sand:#f4ece1; --paper:#fbf7f0; --lobster:#d6492f; --gold:#e0a458;
+    --ink:#13242e; --muted:#5d7480;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    background:#06171f;color:var(--ink);overflow:hidden;
+  }
+  #deck{position:relative;width:100vw;height:100vh;overflow:hidden}
+  .slide{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    padding:5.5vh 7vw;opacity:0;visibility:hidden;
+    transform:translateY(18px);transition:opacity .5s ease, transform .5s ease;
+    overflow-y:auto;
+  }
+  .slide.active{opacity:1;visibility:visible;transform:none}
+  .slide{background:var(--paper)}
+  /* themed backgrounds */
+  .s-title{background:linear-gradient(160deg,#0b2a3a 0%,#10384c 55%,#1f7a8c 130%);color:#fff;justify-content:center}
+  .s-dark{background:linear-gradient(160deg,#0b2a3a,#10384c);color:#fff}
+  .s-sand{background:linear-gradient(160deg,#fbf7f0,#f4ece1)}
+
+  h1{font-size:6.2vw;line-height:1.02;font-weight:800;letter-spacing:-.02em}
+  h2{font-size:3.1vw;line-height:1.05;font-weight:800;letter-spacing:-.01em;margin-bottom:.5em}
+  .s-sand h2{color:var(--navy)}
+  .kicker{font-size:1.15vw;text-transform:uppercase;letter-spacing:.32em;font-weight:700;color:var(--gold);margin-bottom:1.4vh}
+  .s-sand .kicker{color:var(--lobster)}
+  p.lead{font-size:1.7vw;line-height:1.5;max-width:46ch;color:rgba(255,255,255,.86)}
+  .s-sand p.lead{color:var(--muted)}
+
+  .cards{display:grid;gap:1.6vw;margin-top:1vh}
+  .cols-2{grid-template-columns:1fr 1fr}
+  .cols-3{grid-template-columns:1fr 1fr 1fr}
+  .card{background:#fff;border-radius:14px;padding:1.5vw 1.6vw;box-shadow:0 10px 30px rgba(11,42,58,.10);border:1px solid rgba(11,42,58,.06)}
+  .s-dark .card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);box-shadow:none;backdrop-filter:blur(4px)}
+  .card h3{font-size:1.45vw;color:var(--navy);margin-bottom:.4em;display:flex;align-items:center;gap:.5em}
+  .s-dark .card h3{color:#fff}
+  .card p{font-size:1.02vw;line-height:1.5;color:var(--muted)}
+  .s-dark .card p{color:rgba(255,255,255,.78)}
+  .card .tip{display:block;margin-top:.7em;font-size:.95vw;color:var(--teal);font-weight:600}
+  .s-dark .card .tip{color:var(--gold)}
+  .emoji{font-size:1.5em;line-height:1}
+
+  .stats{display:flex;gap:3vw;margin-top:3vh;flex-wrap:wrap}
+  .stat .n{font-size:3.6vw;font-weight:800;color:var(--gold);line-height:1}
+  .stat .l{font-size:1.05vw;color:rgba(255,255,255,.8);margin-top:.4em;max-width:18ch}
+
+  ul.feat{list-style:none;margin-top:1vh}
+  ul.feat li{font-size:1.25vw;line-height:1.7;padding-left:1.6em;position:relative;color:var(--ink)}
+  .s-dark ul.feat li{color:rgba(255,255,255,.88)}
+  ul.feat li::before{content:"";position:absolute;left:0;top:.55em;width:.7em;height:.7em;background:var(--lobster);border-radius:50%}
+  ul.feat li b{color:var(--navy)}
+  .s-dark ul.feat li b{color:#fff}
+
+  .itin{display:grid;grid-template-columns:auto 1fr;gap:.4vw 1.6vw;margin-top:1vh;align-items:start}
+  .itin .day{font-weight:800;color:var(--lobster);font-size:1.3vw;padding-top:.2em;white-space:nowrap}
+  .itin .plan{font-size:1.12vw;line-height:1.55;color:var(--ink);padding-bottom:1.4vh;border-bottom:1px dashed rgba(11,42,58,.18)}
+  .itin .plan b{color:var(--navy)}
+
+  .meta{margin-top:auto;padding-top:2vh;font-size:.95vw;color:var(--muted)}
+  .s-dark .meta,.s-title .meta{color:rgba(255,255,255,.55)}
+
+  /* progress + nav */
+  #bar{position:fixed;left:0;bottom:0;height:5px;background:var(--lobster);width:0;transition:width .4s ease;z-index:40}
+  #dots{position:fixed;right:2.4vw;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:11px;z-index:40}
+  #dots button{width:10px;height:10px;border-radius:50%;border:none;background:rgba(120,140,150,.4);cursor:pointer;padding:0;transition:all .25s}
+  #dots button.on{background:var(--lobster);transform:scale(1.5)}
+  .nav{position:fixed;bottom:2.2vh;left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;z-index:40;
+       background:rgba(11,42,58,.55);backdrop-filter:blur(8px);padding:8px 14px;border-radius:999px}
+  .nav button{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:2px 8px;border-radius:8px}
+  .nav button:hover{background:rgba(255,255,255,.15)}
+  .nav span{color:#fff;font-size:13px;min-width:54px;text-align:center;font-variant-numeric:tabular-nums}
+  .badge{display:inline-block;background:var(--gold);color:var(--navy);font-size:.8vw;font-weight:700;
+         padding:.25em .7em;border-radius:999px;letter-spacing:.04em;text-transform:uppercase}
+  .wave{position:absolute;left:0;right:0;bottom:0;height:14vh;opacity:.25}
+  @media (max-width:760px){
+    h1{font-size:12vw} h2{font-size:6.6vw} .cols-2,.cols-3{grid-template-columns:1fr}
+    p.lead{font-size:4.4vw} .card h3{font-size:4.4vw}.card p{font-size:3.4vw}
+    .card .tip{font-size:3.2vw} ul.feat li{font-size:4vw} .kicker{font-size:3vw}
+    .stat .n{font-size:11vw}.stat .l{font-size:3.2vw}.itin .day{font-size:4vw}.itin .plan{font-size:3.6vw}
+    .meta,.badge,.card .tip{font-size:3vw}
+  }
+</style>
+</head>
+<body>
+<div id="deck">
+
+  <!-- 1. TITLE -->
+  <section class="slide s-title active">
+    <div class="meta" style="margin-top:0">A Visitor's Guide · Compiled June 19, 2026</div>
+    <h1>Portland,<br>Maine</h1>
+    <p class="lead" style="margin-top:2.5vh">The lobster-and-lighthouse capital of New England — and, pound for pound, one of America's great food and beer towns.</p>
+    <div class="stats">
+      <div class="stat"><div class="n">~68k</div><div class="l">people, big-city dining</div></div>
+      <div class="stat"><div class="n">#1</div><div class="l">most brewery-dense U.S. city</div></div>
+      <div class="stat"><div class="n">1791</div><div class="l">Portland Head Light, Maine's oldest</div></div>
+    </div>
+    <svg class="wave" viewBox="0 0 1440 120" preserveAspectRatio="none"><path fill="#bfd7e0" d="M0,64 C240,120 480,0 720,40 C960,80 1200,120 1440,56 L1440,120 L0,120 Z"/></svg>
+  </section>
+
+  <!-- 2. WHY PORTLAND -->
+  <section class="slide s-sand">
+    <div class="kicker">The Pitch</div>
+    <h2>Why Portland punches above its weight</h2>
+    <p class="lead">A compact, walkable peninsula where a working harbor, cobblestone streets, world-class restaurants, and a string of iconic lighthouses all sit within a few minutes of each other.</p>
+    <div class="cards cols-3" style="margin-top:4vh">
+      <div class="card"><h3><span class="emoji">🦞</span>Eat like a champion</h3><p>A perennial James Beard force — Maine sent 10 semifinalists to the 2025 awards. Lobster rolls, oysters, and duck-fat fries are just the start.</p></div>
+      <div class="card"><h3><span class="emoji">🍺</span>Drink local</h3><p>Roughly 20+ breweries in the city alone, on two walkable crawls. Allagash White and Bissell's "The Substance" are institutions.</p></div>
+      <div class="card"><h3><span class="emoji">🗺️</span>See it on foot</h3><p>Old Port, the Arts District, the West End, and the Eastern Promenade are all within a 20-minute walk. A car is only for day trips.</p></div>
+    </div>
+  </section>
+
+  <!-- 3. OLD PORT + ORIENTATION -->
+  <section class="slide s-dark">
+    <div class="kicker">Your Home Base</div>
+    <h2>The Old Port &amp; the neighborhoods</h2>
+    <div class="cards cols-2">
+      <div class="card"><h3>⚓ Old Port</h3><p>Historic cobblestone waterfront district of 19th-century brick — boutiques, galleries, seafood, breweries, nightlife, and the ferry terminal. The heart of any visit.</p><span class="tip">Free to wander · most hotels & the Casco Bay ferry are a few blocks away</span></div>
+      <div class="card"><h3>🎭 Arts District / Congress St</h3><p>Portland's cultural spine — the Portland Museum of Art, Maine College of Art, theaters, and the symphony.</p><span class="tip">Walkable from Old Port</span></div>
+      <div class="card"><h3>🌅 East End / Munjoy Hill</h3><p>Artsy neighborhood wrapped around the Eastern Promenade, with the Observatory and East End Beach. Best sunrises in the city.</p><span class="tip">~20-min walk from Old Port</span></div>
+      <div class="card"><h3>🏛️ West End</h3><p>One of the best-preserved Victorian neighborhoods in the country — brick mansions, gardens, Victoria Mansion, and White Mountain views from the Western Prom.</p><span class="tip">A scenic stroll rather than a shopping hub</span></div>
+    </div>
+  </section>
+
+  <!-- 4. LANDMARKS / HISTORY -->
+  <section class="slide s-sand">
+    <div class="kicker">Landmarks &amp; Museums</div>
+    <h2>History you can walk into</h2>
+    <div class="cards cols-3">
+      <div class="card"><h3>🖼️ Portland Museum of Art</h3><p>Maine's largest art museum (1882) with a notable Winslow Homer & Andrew Wyeth collection.</p><span class="tip">$20 adult · 21 & under free · free Fri eves 4–8pm</span></div>
+      <div class="card"><h3>🔭 Portland Observatory</h3><p>An 1807 wooden maritime signal tower on Munjoy Hill — the last of its kind in the U.S. Climb it for bay views.</p><span class="tip">~$10 · seasonal (late May–mid-Oct) · sunset tours in summer</span></div>
+      <div class="card"><h3>🏰 Victoria Mansion</h3><p>An opulent 1858–60 Italianate villa with ~90% of its original interiors intact — frescoes, stained glass, carved wood.</p><span class="tip">May 1–Oct 31 · ~$20 · reserve ahead, weekends sell out</span></div>
+      <div class="card"><h3>✒️ Wadsworth-Longfellow House</h3><p>Portland's oldest peninsula building (1785) and the poet's boyhood home, with original furnishings and a quiet garden.</p><span class="tip">Seasonal guided tours · garden free (May–Oct)</span></div>
+      <div class="card"><h3>🕊️ Portland Freedom Trail</h3><p>A free, self-guided ~2-mile walk to 13 sites of African American & Underground Railroad history, incl. the Abyssinian Meeting House.</p><span class="tip">Free anytime · grab the map from mainehistory.org</span></div>
+      <div class="card"><h3>🛍️ Exchange Street</h3><p>The main shopping street for Maine-made goods — Venn + Maker, Maine Craft Portland, plus the Saturday Market for handmade crafts.</p><span class="tip">Time it for a Saturday market</span></div>
+    </div>
+  </section>
+
+  <!-- 5. LIGHTHOUSES -->
+  <section class="slide s-dark">
+    <div class="kicker">The Beacons</div>
+    <h2>Lighthouses</h2>
+    <p class="lead" style="margin-bottom:2.5vh">Four classic lights within ~20 minutes of downtown — a half-day driving loop on its own.</p>
+    <div class="cards cols-2">
+      <div class="card"><h3>💡 Portland Head Light</h3><p>Maine's oldest (lit 1791), on dramatic cliffs in 90-acre Fort Williams Park. The most-photographed lighthouse in the state.</p><span class="tip">~10 min · grounds free · go early for light & parking</span></div>
+      <div class="card"><h3>🐞 Bug Light</h3><p>A tiny, ornate 1875 cast-iron light modeled on a Greek monument, with skyline views and big kite-flying lawns.</p><span class="tip">Free park · great for sunset over the skyline</span></div>
+      <div class="card"><h3>🔌 Spring Point Ledge Light</h3><p>A "spark-plug" light at the end of a 900-ft granite breakwater you can actually walk out on.</p><span class="tip">Breakwater free · tours ~$10 (Jul–Oct) · mind the tide</span></div>
+      <div class="card"><h3>🌊 Two Lights State Park</h3><p>Rocky open-ocean ledges in Cape Elizabeth — and the Lobster Shack restaurant right on the point.</p><span class="tip">~15 min · small day-use fee · bring exact change</span></div>
+    </div>
+  </section>
+
+  <!-- 6. ISLANDS & WATER -->
+  <section class="slide s-sand">
+    <div class="kicker">On the Water</div>
+    <h2>Islands, ferries &amp; sea kayaks</h2>
+    <div class="cards cols-2">
+      <div class="card"><h3>⛴️ Casco Bay Lines</h3><p>The nation's oldest continuously operating ferry, serving the "Calendar Islands" year-round. The narrated <b>Mailboat Run</b> (~2.5–3.5 hrs) is the cheapest way out on the bay.</p><span class="tip">From 56 Commercial St · ~$14 round-trip in peak season</span></div>
+      <div class="card"><h3>🚲 Peaks Island</h3><p>The closest island — a ~17-min ferry, then rent a bike and ride the flat ~4-mile perimeter loop past beaches and old forts.</p><span class="tip">No car needed · family-friendly · lunch at Island Lobster Co.</span></div>
+      <div class="card"><h3>🛶 Portland Paddle</h3><p>Guided sea-kayak tours from East End Beach — sunset paddles and trips out to Civil War-era <b>Fort Gorges</b>.</p><span class="tip">Beginners welcome · reserve in summer</span></div>
+      <div class="card"><h3>🐋 Cruises & whale watching</h3><p>Narrated lighthouse cruises (Portland Discovery) and offshore whale watches (Odyssey, New England EcoAdventures).</p><span class="tip">Book ahead in summer · bring layers, it's cold offshore</span></div>
+    </div>
+  </section>
+
+  <!-- 7. OUTDOORS -->
+  <section class="slide s-dark">
+    <div class="kicker">Fresh Air</div>
+    <h2>In-town outdoors &amp; beaches</h2>
+    <div class="cards cols-2">
+      <div class="card"><h3>🌳 Eastern Promenade &amp; Back Cove</h3><p>An Olmsted-designed waterfront park (1905) with a paved 2.1-mi shoreline trail that links to the ~3.5-mi Back Cove loop — together a 5–6 mile waterfront circuit.</p><span class="tip">Free, year-round · East End Beach for a city swim</span></div>
+      <div class="card"><h3>🏖️ Nearby beaches</h3><p><b>Crescent Beach</b> (~15 min, closest sand), <b>Higgins</b> & <b>Scarborough</b> (~20 min, surf), and famous <b>Old Orchard Beach</b> (~25 min, 7 miles + amusement park).</p><span class="tip">Arrive before mid-morning on hot days — parking fills fast</span></div>
+    </div>
+    <ul class="feat" style="margin-top:2.5vh">
+      <li><b>Best free experience in the city:</b> sunrise over Casco Bay from the Eastern Prom.</li>
+      <li>Kayak & SUP launches, a boat ramp, and a playground all line the waterfront.</li>
+    </ul>
+  </section>
+
+  <!-- 8. FOOD: SEAFOOD -->
+  <section class="slide s-sand">
+    <div class="kicker">Eat · Part One</div>
+    <h2>Lobster, oysters &amp; the big tables</h2>
+    <div class="cards cols-3">
+      <div class="card"><h3>🦞 Eventide Oyster Co.</h3><p>The town's most famous bite — a brown-butter lobster roll on a steamed bao bun, plus a pristine raw bar. James Beard-honored.</p><span class="tip">No reservations — go at opening to beat the line</span></div>
+      <div class="card"><h3>🌭 Highroller Lobster Co.</h3><p>Playful, casual Connecticut-style warm-butter rolls — plus lobster corn dogs and "lobster lollipops."</p><span class="tip">Order at the counter · 104 Exchange St</span></div>
+      <div class="card"><h3>🔥 Fore Street</h3><p>The restaurant that put Portland on the map (1996) — wood-fired, hyper-local New England cooking. Maine's #1 on OpenTable 2025.</p><span class="tip">Hardest table in town — book well ahead</span></div>
+      <div class="card"><h3>🦪 Scales</h3><p>Upscale seafood on a working wharf — oysters, champagne, the day's local catch. OpenTable Top 100 in America.</p><span class="tip">Reserve for a waterfront table</span></div>
+      <div class="card"><h3>🍣 Mr. Tuna</h3><p>Sustainable sushi & seafood; 2025 James Beard semifinalist and a Food & Wine Best New Chef.</p><span class="tip">Grew from a food cart — now a destination</span></div>
+      <div class="card"><h3>🍤 Portland Lobster Company</h3><p>The quintessential casual waterfront roll, with live music on an outdoor deck on Commercial St.</p><span class="tip">Peak-summer classic</span></div>
+    </div>
+  </section>
+
+  <!-- 9. FOOD: CASUAL + BAKERIES -->
+  <section class="slide s-dark">
+    <div class="kicker">Eat · Part Two</div>
+    <h2>Fries, donuts &amp; morning buns</h2>
+    <div class="cards cols-3">
+      <div class="card"><h3>🍟 Duckfat</h3><p>Belgian fries fried in duck fat, served in a cone with five sauces, plus poutine and milkshakes. Beard-winning chef.</p><span class="tip">Small space — the Friteshack window is the quick line</span></div>
+      <div class="card"><h3>🍩 The Holy Donut</h3><p>Maine potato-based donuts — ~20 rotating flavors; chocolate-sea-salt is the bestseller. GF-friendly options.</p><span class="tip">Top flavors sell out — go in the morning</span></div>
+      <div class="card"><h3>🥐 Standard Baking Co.</h3><p>Portland's benchmark European bakery since 1995 — baguettes, almond croissants, and the legendary toffee-topped morning bun.</p><span class="tip">Below Fore Street · best items go early</span></div>
+      <div class="card"><h3>🏆 ZU & Norimoto</h3><p>Recent James Beard bakery winners — ZU took Outstanding Bakery; Norimoto's pastry chef won Outstanding Baker.</p><span class="tip">Plus Tandem Coffee & Bakery for locals</span></div>
+      <div class="card"><h3>🥬 Portland Farmers' Market</h3><p>Deering Oaks Park, Sat & Wed 7am–1pm (mid-Apr–Nov), with an indoor winter market Dec–Apr.</p><span class="tip">Go early Saturday for produce & Maine cheese</span></div>
+      <div class="card"><h3>🦪 The $1 oyster scene</h3><p>Same-day local oysters everywhere — <b>Jacqueline</b> leads the happy-hour pack with house hot-sauce droppers.</p><span class="tip">It gets packed — go right at happy hour</span></div>
+    </div>
+  </section>
+
+  <!-- 10. BEER -->
+  <section class="slide s-sand">
+    <div class="kicker">Drink · Beer</div>
+    <h2>America's most brewery-dense city</h2>
+    <p class="lead" style="margin-bottom:2.5vh">20+ breweries in town, clustered into two walkable crawls — do each as one outing.</p>
+    <div class="cards cols-2">
+      <div class="card"><h3><span class="badge">Crawl 1</span> Industrial Way</h3><p>"Brewery Row." <b>1 Industrial Way</b> alone holds Foundation (hazy IPAs + Detroit pizza), Austin Street, and Battery Steele ("Flume"). <b>Allagash</b> (the iconic White) and Definitive are a short walk away.</p><span class="tip">Book Allagash's free tour ahead · Foundation closed Tue</span></div>
+      <div class="card"><h3><span class="badge">Crawl 2</span> East Bayside</h3><p>Closer to downtown — <b>Rising Tide</b>, <b>Goodfire</b>, and <b>Lone Pine</b> (Goodfire is tucked right behind it), plus distilleries in the same blocks.</p><span class="tip">Walkable from the Old Port</span></div>
+    </div>
+    <ul class="feat" style="margin-top:2vh">
+      <li><b>Don't-miss pours:</b> Allagash White · Bissell Brothers "The Substance" (at scenic Thompson's Point) · Maine Beer Co.'s "Lunch" (in Freeport).</li>
+    </ul>
+  </section>
+
+  <!-- 11. COCKTAILS / SPIRITS -->
+  <section class="slide s-dark">
+    <div class="kicker">Drink · Spirits</div>
+    <h2>Cocktails &amp; distilleries</h2>
+    <div class="cards cols-3">
+      <div class="card"><h3>🍸 Portland Hunt &amp; Alpine Club</h3><p>Nationally recognized, Scandinavian-inspired cocktails — a Portland benchmark since 2013.</p><span class="tip">75 Market St, Old Port</span></div>
+      <div class="card"><h3>🚢 Blyth &amp; Burrows</h3><p>A multi-level, maritime-themed bar with hidden speakeasy spaces — named a best cocktail bar by Wine Enthusiast.</p><span class="tip">Old Port</span></div>
+      <div class="card"><h3>🥃 New England Distilling</h3><p>Portland's first distillery since Prohibition — small-batch rye, rum, and gin, with free tours & tastings.</p><span class="tip">113 Franklin St</span></div>
+      <div class="card"><h3>🍹 Room for Improvement</h3><p>A buzzy new Old Port bar named to Punch magazine's five best new bars in America.</p><span class="tip">Old Port</span></div>
+      <div class="card"><h3>🌿 Hardshore Distilling</h3><p>East End gin specialist — rosemary, mint, and Tuscan juniper, milled on site.</p><span class="tip">53 Washington Ave</span></div>
+      <div class="card"><h3>🍶 Three of Strong</h3><p>Small-batch rum made with Sebago Lake water; tours by advance sign-up.</p><span class="tip">35B Diamond St · reserve ahead</span></div>
+    </div>
+  </section>
+
+  <!-- 12. DAY TRIPS -->
+  <section class="slide s-sand">
+    <div class="kicker">Beyond the City</div>
+    <h2>Day trips</h2>
+    <div class="cards cols-3">
+      <div class="card"><h3>🥾 Freeport &amp; L.L. Bean</h3><p>The flagship store has no door locks — open 24/7/365 since 1951, with a 3,500-gallon trout tank and a giant Bean Boot out front.</p><span class="tip">~20 min north · pair with Maine Beer Co.</span></div>
+      <div class="card"><h3>🎡 Old Orchard Beach</h3><p>7 miles of sand, a classic boardwalk, and New England's only beachfront amusement park (Palace Playland).</p><span class="tip">~25 min · peaks Jul–Aug</span></div>
+      <div class="card"><h3>⛵ Kennebunkport</h3><p>A classic, well-heeled coastal village — walkable center, harbor strolls, and shopping.</p><span class="tip">~35 min south · best late spring–fall</span></div>
+      <div class="card"><h3>🏞️ Cape Elizabeth</h3><p>The easiest half-day — Portland Head Light, Two Lights, and Kettle Cove all in one upscale coastal town.</p><span class="tip">~10–15 min · great on a clear day</span></div>
+      <div class="card"><h3>💡 Lighthouse Trail</h3><p>String together Portland Head, Two Lights, Spring Point & Bug Light into a self-guided loop — several within 20 min.</p><span class="tip">Half- to full-day · best in summer/fall</span></div>
+      <div class="card"><h3>🏔️ Acadia National Park</h3><p>Maine's only national park — granite peaks, carriage roads, Cadillac Mountain sunrises.</p><span class="tip">~3.5 hrs each way — make it an overnight, not a day trip</span></div>
+    </div>
+  </section>
+
+  <!-- 13. SEASONS -->
+  <section class="slide s-dark">
+    <div class="kicker">When To Go</div>
+    <h2>Reading the seasons</h2>
+    <div class="cards cols-3">
+      <div class="card"><h3>☀️ Summer <span style="color:var(--gold)">(Jun–Aug)</span></h3><p>The headline season — full ferry & tour schedules, beaches, festivals (the Old Port Festival), and temps that rarely top 80°F.</p><span class="tip">High season — book lodging early, expect crowds</span></div>
+      <div class="card"><h3>🍂 Fall <span style="color:var(--gold)">(Sep–Oct)</span></h3><p>Crisp air, foliage peaking early-to-mid October, and the summer crowds gone. Harvest on the Harbor showcases the food scene.</p><span class="tip">The sweet spot for value + color</span></div>
+      <div class="card"><h3>❄️ Winter</h3><p>Snowy, quiet, and cheapest — with the February Winter Light Festival. Many seasonal sites are closed.</p><span class="tip">Best for budget travel & a calm city</span></div>
+    </div>
+    <p class="lead" style="margin-top:3vh">Most museums, lighthouses' interiors, and historic houses run roughly <b style="color:var(--gold)">May/June–October</b>. Confirm 2026 hours and prices on official sites before you go.</p>
+  </section>
+
+  <!-- 14. ITINERARY -->
+  <section class="slide s-sand">
+    <div class="kicker">Put It Together</div>
+    <h2>A perfect summer weekend</h2>
+    <div class="itin">
+      <div class="day">Fri PM</div><div class="plan">Land in the <b>Old Port</b>. Standard Baking morning bun for later, oysters & the brown-butter roll at <b>Eventide</b>, nightcap at <b>Blyth & Burrows</b>.</div>
+      <div class="day">Sat AM</div><div class="plan">Sunrise on the <b>Eastern Promenade</b>, then the <b>Casco Bay ferry</b> to <b>Peaks Island</b> for a bike loop. Lobster lunch on the water.</div>
+      <div class="day">Sat PM</div><div class="plan"><b>Industrial Way</b> brewery crawl — Allagash, Foundation, Battery Steele. Dinner at <b>Fore Street</b> (reserve ahead), <b>Holy Donut</b> for the road.</div>
+      <div class="day">Sun AM</div><div class="plan">Drive to <b>Cape Elizabeth</b> for <b>Portland Head Light</b> & Fort Williams. Fries at the <b>Lobster Shack</b> at Two Lights.</div>
+      <div class="day">Sun PM</div><div class="plan">Detour to <b>Freeport / L.L. Bean</b> on the way out — or chase the <b>lighthouse trail</b> for one more beacon.</div>
+    </div>
+  </section>
+
+  <!-- 15. CLOSING -->
+  <section class="slide s-title">
+    <div class="kicker" style="color:var(--gold)">Go Eat a Lobster Roll</div>
+    <h1 style="font-size:4.6vw">See you in<br>Portland.</h1>
+    <p class="lead" style="margin-top:2.5vh">Walkable, salty, delicious, and easy to love in a long weekend. Confirm seasonal hours & prices on official sites close to your trip — they shift year to year.</p>
+    <div class="meta">Sources include Visit Portland, Visit Maine, Casco Bay Lines, the Portland Museum of Art, Greater Portland Landmarks, Portland Food Map, Maine Brewers' Guild, the Maine Historical Society, and official venue sites. Research cross-verified June 2026.</div>
+    <svg class="wave" viewBox="0 0 1440 120" preserveAspectRatio="none"><path fill="#bfd7e0" d="M0,64 C240,120 480,0 720,40 C960,80 1200,120 1440,56 L1440,120 L0,120 Z"/></svg>
+  </section>
+
+</div>
+
+<div id="bar"></div>
+<div id="dots"></div>
+<div class="nav">
+  <button id="prev" aria-label="Previous">‹</button>
+  <span id="counter">1 / 15</span>
+  <button id="next" aria-label="Next">›</button>
+</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  const dotsWrap=document.getElementById('dots');
+  const bar=document.getElementById('bar');
+  const counter=document.getElementById('counter');
+  let i=0;
+  slides.forEach((_,n)=>{const b=document.createElement('button');b.onclick=()=>go(n);dotsWrap.appendChild(b);});
+  const dots=[...dotsWrap.children];
+  function go(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    dots.forEach((d,k)=>d.classList.toggle('on',k===i));
+    bar.style.width=((i+1)/slides.length*100)+'%';
+    counter.textContent=(i+1)+' / '+slides.length;
+  }
+  document.getElementById('next').onclick=()=>go(i+1);
+  document.getElementById('prev').onclick=()=>go(i-1);
+  document.addEventListener('keydown',e=>{
+    if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();go(i+1);}
+    if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(i-1);}
+    if(e.key==='Home')go(0); if(e.key==='End')go(slides.length-1);
+  });
+  let sx=0;
+  document.addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});
+  document.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>50)go(i+(dx<0?1:-1));},{passive:true});
+  go(0);
+</script>
+</body>
+</html>
