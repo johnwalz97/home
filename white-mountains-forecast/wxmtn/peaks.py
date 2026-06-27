@@ -43,6 +43,13 @@ SUMMITS = [
     Location("South Twin Mountain", 44.1872, -71.5547, 1430.7, "Twin-Bond"),
     Location("Mount Garfield", 44.1869, -71.6017, 1397.2, "Franconia"),
     Location("Mount Carter Dome", 44.2672, -71.1786, 1453.3, "Carter-Moriah"),
+    # Lower "view" summits — sit below the high ridgelines, so on low-cloud days
+    # they often poke out into clear air when the 4,000-footers stay socked in.
+    Location("Mount Chocorua", 43.9594, -71.2683, 1059.0, "Sandwich"),
+    Location("Mount Kearsarge North", 44.0917, -71.0856, 996.0, "Conway"),
+    Location("Mount Willard", 44.2156, -71.4042, 873.0, "Crawford"),
+    Location("Welch Mountain", 43.9061, -71.5878, 645.0, "Waterville"),
+    Location("Dickey Mountain", 43.9133, -71.5961, 728.0, "Waterville"),
 ]
 
 # Lower-elevation reference points (notches + valley towns). These anchor the
