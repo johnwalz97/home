@@ -34,7 +34,8 @@ weather to it.
 
 ## Usage
 
-No third-party dependencies — standard-library Python 3.11+.
+No third-party dependencies — standard-library Python 3.11+. Run from inside the
+`white-mountains-forecast/` folder:
 
 ```bash
 # 48-hour outlook, every 6 hours, all summits

@@ -1,5 +1,5 @@
-# cached NWS API responses
-data/cache/
+# cached NWS API responses (matches at any depth)
+**/data/cache/
 
 # python
 __pycache__/
