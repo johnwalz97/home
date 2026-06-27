@@ -50,6 +50,8 @@ SUMMITS = [
     Location("Mount Willard", 44.2156, -71.4042, 873.0, "Crawford"),
     Location("Welch Mountain", 43.9061, -71.5878, 645.0, "Waterville"),
     Location("Dickey Mountain", 43.9133, -71.5961, 728.0, "Waterville"),
+    Location("South Moat Mountain", 43.9967, -71.2072, 841.0, "Moats"),
+    Location("Black Cap", 44.0533, -71.0800, 722.0, "Green Hills"),
 ]
 
 # Lower-elevation reference points (notches + valley towns). These anchor the
