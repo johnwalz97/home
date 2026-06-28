@@ -46,6 +46,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--spots", action="store_true", help="include lower-elevation spots")
     ap.add_argument("--mwobs", action="store_true",
                     help="append the Mount Washington Obs higher-summits text")
+    ap.add_argument("--html", metavar="PATH",
+                    help="write a standalone interactive map report to PATH")
     ap.add_argument("--backtest", action="store_true",
                     help="log this hour vs KMWN and print the scoreboard")
     args = ap.parse_args(argv)
@@ -81,6 +83,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Backtest scoreboard: {board['samples']} samples, "
               f"temp MAE {board.get('temp_mae_f')}°F, "
               f"cloud accuracy {board.get('cloud_accuracy')}")
+        return 0
+
+    if args.html:
+        from . import webreport
+        spot_fc = fetch.fetch_all(peaks.SPOTS)
+        payload = webreport.build_payload(all_fc, summit_fc, times, spot_fc=spot_fc)
+        with open(args.html, "w") as fh:
+            fh.write(webreport.render_html(payload))
+        print(f"Wrote interactive report: {args.html} "
+              f"({len(payload['peaks'])} peaks, {len(payload['labels'])} hours)")
         return 0
 
     if args.brief:

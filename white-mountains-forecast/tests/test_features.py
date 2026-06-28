@@ -66,6 +66,15 @@ def test_bias_decays_to_zero():
     assert abs(e_later.bias_f) < 0.1                    # ~zero at the decay horizon
 
 
+def test_webreport_renders_payload():
+    from wxmtn import webreport
+    payload = {"generated": "x", "labels": ["sun 12pm"], "sunrise": "5am",
+               "sunset": "8pm", "summit_now": None, "alerts": [], "peaks": []}
+    html = webreport.render_html(payload)
+    assert "/*__DATA__*/null" not in html          # placeholder was replaced
+    assert '"sun 12pm"' in html and "leaflet" in html
+
+
 def test_mwobs_returns_none_on_junk(monkeypatch=None):
     # The scraper must never emit nav/placeholder junk; None is the honest answer.
     out = mwobs.higher_summits_text(timeout=1)
