@@ -229,23 +229,34 @@ function scoreColor(s){
   const G=[46,204,113],Y=[241,196,15],R=[231,76,60];
   return s>=50 ? rgb(mix(Y,G,(s-50)/50)) : rgb(mix(R,Y,s/50));
 }
-const map = L.map('map',{zoomControl:true}).setView([44.18,-71.35],10);
-L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{
-  maxZoom:17, attribution:'© OpenTopoMap (CC-BY-SA), © OpenStreetMap'}).addTo(map);
-
-const markers = D.peaks.map(p=>{
-  const m = L.circleMarker([p.lat,p.lon],{radius:9,weight:2,color:'#0008',fillOpacity:.95});
-  m.peak = p; m.addTo(map);
-  m.on('click',()=>select(p));
-  m.bindTooltip(p.name,{direction:'top'});
-  return m;
-});
-const bounds = L.latLngBounds(D.peaks.map(p=>[p.lat,p.lon])); map.fitBounds(bounds.pad(.12));
-
+// The map is an enhancement: if Leaflet/tiles can't load (offline), the ranked
+// list, detail panel, and slider still work entirely from the embedded data.
+let map=null, markers=[], mapOK=(typeof L!=='undefined');
+if(mapOK){
+  try{
+    map = L.map('map',{zoomControl:true}).setView([44.18,-71.35],10);
+    L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{
+      maxZoom:17, attribution:'© OpenTopoMap (CC-BY-SA), © OpenStreetMap'}).addTo(map);
+    markers = D.peaks.map(p=>{
+      const m = L.circleMarker([p.lat,p.lon],{radius:9,weight:2,color:'#0008',fillOpacity:.95});
+      m.peak = p; m.addTo(map);
+      m.on('click',()=>select(p));
+      m.bindTooltip(p.name,{direction:'top'});
+      return m;
+    });
+    map.fitBounds(L.latLngBounds(D.peaks.map(p=>[p.lat,p.lon])).pad(.12));
+  }catch(e){ mapOK=false; }
+}
+if(!mapOK){
+  document.getElementById('map').innerHTML =
+    '<div style="display:flex;height:100%;align-items:center;justify-content:center;'+
+    'color:#8b949e;text-align:center;padding:24px">The topo map needs a connection '+
+    '(Leaflet + tiles).<br>The ranked list and details on the left work offline.</div>';
+}
 function hourOf(p){ return p.hours[Math.min(idx,p.hours.length-1)]; }
 function refresh(){
   document.getElementById('when').textContent = D.labels[idx] || '';
-  markers.forEach(m=>{
+  if(mapOK) markers.forEach(m=>{
     const h = hourOf(m.peak);
     const sc = m.peak.type==='spot' ? (h.cloud?20:75) : h.score;
     m.setStyle({fillColor:scoreColor(m.peak.type==='spot'?null:sc),
@@ -268,7 +279,7 @@ function buildList(){
       <span class="nm">${p.name}</span>
       <span class="meta">${p.elev_ft.toLocaleString()}'${h.cloud?' · ◍ cloud':''}</span>
       <span class="sc">${p.day_score??'·'}</span>`;
-    div.onclick=()=>{select(p); map.panTo([p.lat,p.lon]);};
+    div.onclick=()=>{select(p); if(mapOK) map.panTo([p.lat,p.lon]);};
     L0.appendChild(div);
   });
 }
