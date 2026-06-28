@@ -7,7 +7,9 @@ __pycache__/
 .venv/
 
 # scratch
-err.log
+**/err.log
+**/*_err.log
 
 # live backtest log (machine state)
-data/backtest.jsonl
+**/data/backtest.jsonl
+**/data/*.jsonl
