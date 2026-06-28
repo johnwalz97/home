@@ -69,7 +69,22 @@ python -m wxmtn --backtest
 # skip live obs / machine-readable output
 python -m wxmtn --no-live
 python -m wxmtn --json > forecast.json
+
+# standalone interactive report (topo map + hour slider + play button)
+python -m wxmtn --hours 36 --step 1 --html today.html
 ```
+
+## Live daily report (GitHub Pages)
+
+`.github/workflows/daily-forecast.yml` rebuilds the interactive report every
+morning (10:00 UTC) and on demand, and publishes it to GitHub Pages — so there's
+always a fresh, phone-friendly dashboard at:
+
+**https://johnwalz97.github.io/home/**
+
+One-time setup: in the repo **Settings → Pages**, set **Source = GitHub Actions**
+(the workflow tries to enable this automatically via `configure-pages`, but if
+the first run can't, flip it once and re-run the workflow).
 
 The NWS asks clients to identify themselves; set a contact string with
 `WXMTN_CONTACT="you@example.com"` (it goes in the User-Agent only).

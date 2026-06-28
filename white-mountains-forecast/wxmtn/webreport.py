@@ -179,7 +179,13 @@ _TEMPLATE = r"""<!doctype html>
           background:#161b22ee;border:1px solid var(--line);border-radius:12px;padding:10px 16px;
           width:min(680px,86%);backdrop-filter:blur(6px)}
   #slider .when{text-align:center;font-weight:700;margin-bottom:6px}
+  #slider .ctl{display:flex;align-items:center;gap:10px}
   #slider input{width:100%}
+  #play{flex:none;width:34px;height:30px;border-radius:8px;border:1px solid var(--line);
+        background:#21262d;color:var(--ink);cursor:pointer;font-size:13px}
+  #play:hover{background:#30363d}
+  .spark{margin:8px 0}
+  .spark svg{display:block;width:100%;height:38px}
   #detail{position:absolute;top:14px;right:14px;z-index:500;width:300px;max-height:calc(100vh - 60px);
           overflow:auto;background:#161b22f2;border:1px solid var(--line);border-radius:12px;padding:14px;
           backdrop-filter:blur(6px);display:none}
@@ -214,7 +220,8 @@ _TEMPLATE = r"""<!doctype html>
     </div>
     <div id="slider">
       <div class="when" id="when"></div>
-      <input id="hr" type="range" min="0" value="0" step="1"/>
+      <div class="ctl"><button id="play" title="play/pause">▶</button>
+        <input id="hr" type="range" min="0" value="0" step="1"/></div>
     </div>
   </div>
 </div>
@@ -283,6 +290,20 @@ function buildList(){
     L0.appendChild(div);
   });
 }
+function sparkline(p){
+  const sc = p.hours.map(h=>h.score);
+  if(sc.every(s=>s==null)) return '';
+  const W=272,H=38,n=sc.length, dx=W/Math.max(1,n-1);
+  const pts = sc.map((s,i)=>`${(i*dx).toFixed(1)},${(H-2-(s??0)/100*(H-4)).toFixed(1)}`);
+  // mark current hour
+  const cx=(idx*dx).toFixed(1), cy=(H-2-(sc[Math.min(idx,n-1)]??0)/100*(H-4)).toFixed(1);
+  // daylight-ish: just show the score trace + current dot
+  return `<div class="spark"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <polyline fill="none" stroke="#1f6feb" stroke-width="2" points="${pts.join(' ')}"/>
+    <line x1="0" y1="${H-2-55/100*(H-4)}" x2="${W}" y2="${H-2-55/100*(H-4)}" stroke="#30363d" stroke-dasharray="3 3"/>
+    <circle cx="${cx}" cy="${cy}" r="3.5" fill="#7ee2a8"/></svg>
+    <div class="el" style="margin:0">score over the next ${n}h (dot = selected hour)</div></div>`;
+}
 function renderDetail(p){
   const d=document.getElementById('detail'); d.style.display='block';
   const rows = p.hours.map((h,i)=>`<tr${i===idx?' style="background:#1f6feb22"':''}>
@@ -291,6 +312,7 @@ function renderDetail(p){
     <td class="${h.cloud?'cloud':''}">${h.cloud?'cloud':(h.vis||'').split(' ')[0]}</td></tr>`).join('');
   d.innerHTML=`<span class="x" onclick="document.getElementById('detail').style.display='none'">✕</span>
     <h2>${p.name}</h2><div class="el">${p.elev_ft.toLocaleString()} ft · ${p.range}${p.day_score!=null?` · score ${p.day_score}/100`:''}</div>
+    ${sparkline(p)}
     ${p.summary?`<div class="sum">${p.summary}</div>`:''}
     ${p.best_window?`<div class="el">Best window: <b style="color:#7ee2a8">${p.best_window}</b></div>`:''}
     ${p.trailhead?`<div class="el">🥾 ${p.trailhead}</div>`:''}
@@ -307,5 +329,11 @@ D.alerts.forEach(a=> chips.innerHTML += `<span class="chip warn">⚠ ${a}</span>
 
 const hr=document.getElementById('hr'); hr.max=D.labels.length-1;
 hr.oninput=e=>{idx=+e.target.value; refresh();};
+let timer=null; const playBtn=document.getElementById('play');
+playBtn.onclick=()=>{
+  if(timer){clearInterval(timer);timer=null;playBtn.textContent='▶';return;}
+  playBtn.textContent='⏸';
+  timer=setInterval(()=>{idx=(idx+1)%D.labels.length; hr.value=idx; refresh();},650);
+};
 refresh();
 </script></body></html>"""
