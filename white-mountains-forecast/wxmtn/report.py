@@ -6,9 +6,30 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from .fetch import LocationForecast
-from .model import SummitEstimate, estimate
+from .model import SummitEstimate, c_to_f, estimate, kmh_to_mph, m_to_mi
+from .obs import obs_in_cloud
 
 EASTERN = ZoneInfo("America/New_York")
+
+
+def live_conditions_block(all_fc: dict[str, LocationForecast]) -> str:
+    """Show measured 'right now' obs (esp. Mount Washington) and validate the model."""
+    obs_fcs = [fc for fc in all_fc.values() if getattr(fc, "observation", None)]
+    if not obs_fcs:
+        return ""
+    lines = ["LIVE OBSERVATIONS — measured right now", "=" * 60]
+    for fc in sorted(obs_fcs, key=lambda f: -f.grid_elevation_m):
+        o = fc.observation
+        local = o["when"].astimezone(EASTERN).strftime("%H:%M EDT")
+        t = f"{c_to_f(o['temp_c']):.0f}°F" if o["temp_c"] is not None else "--"
+        w = f"{kmh_to_mph(o['wind_kmh']):.0f} mph" if o["wind_kmh"] is not None else "--"
+        vis = f"{m_to_mi(o['vis_m']):.0f} mi" if o["vis_m"] is not None else "--"
+        cloud = obs_in_cloud(o)
+        sky = "IN CLOUD/FOG" if cloud else "clear of cloud" if cloud is False else "?"
+        extra = f", {o['text']}" if o.get("text") else ""
+        lines.append(f"  {fc.loc.name} (~{fc.grid_elevation_m*3.28084:.0f} ft, {local})")
+        lines.append(f"      {t}, wind {w}, visibility {vis} — {sky}{extra}")
+    return "\n".join(lines)
 
 
 def forecast_times(now: datetime, hours: int, step: int) -> list[datetime]:
@@ -103,15 +124,19 @@ def full_report(
         f"Generated {datetime.now(EASTERN):%Y-%m-%d %H:%M EDT}",
         f"Stations/points used: {len(all_fc)}  |  summits forecast: {len(summits)}",
         "",
-        region_overview(all_fc, summits, times[0]),
-        "",
     ]
+    live = live_conditions_block(all_fc)
+    if live:
+        out += [live, ""]
+    out += [region_overview(all_fc, summits, times[0]), ""]
     for s in summits:
         out.append(summit_block(all_fc, s, times))
         out.append("")
     out.append(
         "Method: temperature is a least-squares lapse-rate fit over all points,"
         " evaluated at each true summit elevation; visibility blends the NWS grid"
-        " visibility with a lifting-condensation-level cloud-base estimate."
+        " visibility with a lifting-condensation-level cloud-base estimate. Live"
+        " station obs (incl. the Mount Washington Obs summit) anchor the current"
+        " hour to measured reality."
     )
     return "\n".join(out)

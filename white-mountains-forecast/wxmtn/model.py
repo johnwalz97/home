@@ -20,7 +20,7 @@ Two physical ideas do the work here:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .fetch import LocationForecast
 
@@ -102,12 +102,37 @@ def _cloud_base_m(all_fc: dict[str, LocationForecast], when: datetime) -> float 
         if lowest is None or fc.grid_elevation_m < lowest.grid_elevation_m:
             if fc.value("temp_c", when) is not None and fc.value("dewpoint_c", when) is not None:
                 lowest = fc
-    if lowest is None:
-        return None
-    t = lowest.value("temp_c", when)
-    td = lowest.value("dewpoint_c", when)
-    spread = max(0.0, t - td)
-    return lowest.grid_elevation_m + LCL_M_PER_C * spread
+    base = None
+    if lowest is not None:
+        t = lowest.value("temp_c", when)
+        td = lowest.value("dewpoint_c", when)
+        base = lowest.grid_elevation_m + LCL_M_PER_C * max(0.0, t - td)
+
+    # Constrain with live observations near this hour: a measured-clear summit
+    # means the base is above it; a measured in-cloud station means it's below.
+    base = _apply_obs_constraints(all_fc, when, base)
+    return base
+
+
+def _apply_obs_constraints(
+    all_fc: dict[str, LocationForecast], when: datetime, base: float | None
+) -> float | None:
+    from .obs import obs_in_cloud  # local import to avoid a cycle
+
+    when = when.astimezone(timezone.utc)
+    for fc in all_fc.values():
+        o = getattr(fc, "observation", None)
+        if not o:
+            continue
+        if abs((when - o["when"]).total_seconds()) > 3 * 3600:  # only "now"
+            continue
+        ic = obs_in_cloud(o)
+        elev = fc.grid_elevation_m
+        if ic is False:  # measured clear at this elevation -> base is higher
+            base = max(base or 0.0, elev + 60.0)
+        elif ic is True:  # measured in cloud -> base is at/below this elevation
+            base = min(base if base is not None else elev, elev)
+    return base
 
 
 def _wind_chill_f(temp_f: float | None, wind_mph: float | None) -> float | None:

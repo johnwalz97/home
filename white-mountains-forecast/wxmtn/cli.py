@@ -13,7 +13,7 @@ import json
 import sys
 from datetime import datetime, timezone
 
-from . import fetch, peaks, report
+from . import fetch, obs, peaks, report
 from .model import estimate
 
 
@@ -37,6 +37,9 @@ def main(argv: list[str] | None = None) -> int:
         "--peak", action="append", default=[], help="filter to summit(s) by name substring"
     )
     ap.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    ap.add_argument(
+        "--no-live", action="store_true", help="skip live station observations"
+    )
     args = ap.parse_args(argv)
 
     summits = _select_summits(args.peak)
@@ -49,6 +52,12 @@ def main(argv: list[str] | None = None) -> int:
     print("Fetching NWS point data...", file=sys.stderr)
     all_fc = fetch.fetch_all(peaks.ALL)
     summit_fc = [all_fc[s.name] for s in summits]
+
+    # Fold in live observations (incl. the Mount Washington Obs summit station)
+    # as real-time anchors so the current hour is pinned to measured reality.
+    if not args.no_live:
+        for anchor in obs.live_anchors():
+            all_fc[anchor.loc.name] = anchor
 
     now = datetime.now(timezone.utc)
     times = report.forecast_times(now, args.hours, args.step)
