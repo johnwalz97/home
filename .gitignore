@@ -8,3 +8,6 @@ __pycache__/
 
 # scratch
 err.log
+
+# live backtest log (machine state)
+data/backtest.jsonl

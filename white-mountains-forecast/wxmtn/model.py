@@ -74,6 +74,33 @@ class SummitEstimate:
     in_cloud: bool
     visibility_label: str
     feels_like_f: float | None
+    bias_f: float = 0.0  # obs-correction applied to temp this hour (°F)
+
+
+def summit_temp_bias_c(
+    all_fc: dict[str, LocationForecast], now: datetime
+) -> float | None:
+    """Live correction: measured summit temp minus the grid's own summit forecast.
+
+    Anchored on KMWN vs the Mount Washington grid cell. Carried (decaying) into
+    near-term forecast hours so the whole region inherits the current local bias.
+    """
+    obs = next(
+        (fc for fc in all_fc.values()
+         if getattr(fc, "observation", None) and fc.loc.is_summit),
+        None,
+    )
+    grid = all_fc.get("Mount Washington")
+    if obs is None or grid is None:
+        return None
+    o = obs.observation["temp_c"]
+    g = grid.value("temp_c", now)
+    if o is None or g is None:
+        return None
+    return o - g
+
+
+BIAS_DECAY_H = 6.0  # the obs bias fades to zero over this many hours
 
 
 def _lapse_temp(
@@ -145,9 +172,21 @@ def _wind_chill_f(temp_f: float | None, wind_mph: float | None) -> float | None:
 
 
 def estimate(
-    all_fc: dict[str, LocationForecast], summit: LocationForecast, when: datetime
+    all_fc: dict[str, LocationForecast],
+    summit: LocationForecast,
+    when: datetime,
+    *,
+    bias_c: float = 0.0,
+    bias_from: datetime | None = None,
 ) -> SummitEstimate:
     temp_c, lapse = _lapse_temp(all_fc, summit, when)
+    bias_f = 0.0
+    if temp_c is not None and bias_c and bias_from is not None:
+        hours = (when - bias_from).total_seconds() / 3600.0
+        if 0 <= hours <= BIAS_DECAY_H:
+            applied = bias_c * (1 - hours / BIAS_DECAY_H)
+            temp_c += applied
+            bias_f = applied * 9 / 5
     temp_f = c_to_f(temp_c) if temp_c is not None else None
 
     wind = summit.value("wind_kmh", when)
@@ -179,6 +218,7 @@ def estimate(
         in_cloud=in_cloud,
         visibility_label=label,
         feels_like_f=feels,
+        bias_f=bias_f,
     )
 
 

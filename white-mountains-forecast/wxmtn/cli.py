@@ -13,7 +13,7 @@ import json
 import sys
 from datetime import datetime, timezone
 
-from . import fetch, obs, peaks, report
+from . import backtest, fetch, obs, peaks, report
 from .model import estimate
 
 
@@ -40,9 +40,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--no-live", action="store_true", help="skip live station observations"
     )
+    ap.add_argument("--region", help="filter summits by range (substring)")
+    ap.add_argument("--brief", action="store_true", help="short morning brief: top picks")
+    ap.add_argument("--rank", action="store_true", help="rank peaks by today's score")
+    ap.add_argument("--spots", action="store_true", help="include lower-elevation spots")
+    ap.add_argument("--mwobs", action="store_true",
+                    help="append the Mount Washington Obs higher-summits text")
+    ap.add_argument("--backtest", action="store_true",
+                    help="log this hour vs KMWN and print the scoreboard")
     args = ap.parse_args(argv)
 
     summits = _select_summits(args.peak)
+    if args.region:
+        summits = [s for s in summits if args.region.lower() in s.range.lower()]
     if not summits:
         print("No summits matched.", file=sys.stderr)
         return 2
@@ -61,6 +71,24 @@ def main(argv: list[str] | None = None) -> int:
 
     now = datetime.now(timezone.utc)
     times = report.forecast_times(now, args.hours, args.step)
+
+    if args.backtest:
+        rec = backtest.log_now(all_fc, now)
+        if rec:
+            print(f"Logged: model {rec['model_temp_f']}°F vs obs {rec['obs_temp_f']}°F "
+                  f"(in-cloud model={rec['model_in_cloud']}, obs vis {rec['obs_vis_mi']} mi)")
+        board = backtest.scoreboard()
+        print(f"Backtest scoreboard: {board['samples']} samples, "
+              f"temp MAE {board.get('temp_mae_f')}°F, "
+              f"cloud accuracy {board.get('cloud_accuracy')}")
+        return 0
+
+    if args.brief:
+        print(report.brief_report(all_fc, summit_fc, times))
+        return 0
+    if args.rank:
+        print(report.rank_report(all_fc, summit_fc, times))
+        return 0
 
     if args.json:
         payload = {
@@ -95,6 +123,16 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(payload, indent=2))
     else:
         print(report.full_report(all_fc, summit_fc, times))
+        if args.spots:
+            spot_fc = fetch.fetch_all(peaks.SPOTS)
+            print()
+            print(report.spots_block(spot_fc, times))
+        if args.mwobs:
+            from . import mwobs
+            text = mwobs.higher_summits_text()
+            print("\nMOUNT WASHINGTON OBS — HIGHER SUMMITS FORECAST (cross-check)")
+            print("=" * 60)
+            print("  " + (text if text else "(unavailable)"))
     return 0
 
 

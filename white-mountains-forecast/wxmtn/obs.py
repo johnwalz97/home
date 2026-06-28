@@ -19,11 +19,17 @@ from . import nws
 from .fetch import LocationForecast
 from .peaks import Location
 
-# (station id, label, lat, lon, is_summit). KMWN = Mount Washington Observatory.
+# (station id, label, lat, lon, is_summit). KMWN = Mount Washington Observatory
+# summit station (~1,910 m) -- our only high anchor; the rest bracket the valleys
+# so the real-time elevation spread is well constrained.
 OBS_STATIONS = [
     ("KMWN", "Mount Washington summit (MWOBS, live)", 44.2706, -71.3033, True),
+    ("KBML", "Berlin valley (live)", 44.5750, -71.1790, False),
     ("KHIE", "Whitefield valley (live)", 44.3675, -71.5453, False),
+    ("KIZG", "Fryeburg valley (live)", 43.9908, -70.9483, False),
+    ("K1P1", "Plymouth valley (live)", 43.7790, -71.7550, False),
     ("KLCI", "Laconia valley (live)", 43.5725, -71.4189, False),
+    ("KCON", "Concord valley (live)", 43.1950, -71.5020, False),
 ]
 
 
@@ -82,6 +88,33 @@ def live_anchors() -> list[LocationForecast]:
         if a is not None:
             out.append(a)
     return out
+
+
+def observed_lapse(anchors: list[LocationForecast]):
+    """Measured lapse rate (°C/1000 m) and inversion flag from the live anchors.
+
+    Returns (lapse_c_per_1000m, inversion, detail) or (None, False, "") if there
+    aren't enough stations. An inversion is when temperature *rises* with height
+    across some layer (common at dawn / under high pressure) -- the linear lapse
+    fit can't represent it, so we flag it explicitly.
+    """
+    pts = sorted(
+        ((a.grid_elevation_m, a.observation["temp_c"], a.loc.name)
+         for a in anchors if a.observation and a.observation.get("temp_c") is not None),
+        key=lambda p: p[0],
+    )
+    if len(pts) < 2:
+        return None, False, ""
+    z0, t0, _ = pts[0]
+    z1, t1, _ = pts[-1]
+    lapse = (t1 - t0) / (z1 - z0) * 1000.0 if z1 != z0 else None
+    inversion, detail = False, ""
+    for (za, ta, na), (zb, tb, nb) in zip(pts, pts[1:]):
+        if zb - za > 100 and tb - ta > 0.5:  # warmer higher up = inversion
+            inversion = True
+            detail = f"{na} ({ta:.0f}°C) colder than {nb} ({tb:.0f}°C) above it"
+            break
+    return lapse, inversion, detail
 
 
 def obs_in_cloud(o: dict) -> bool | None:

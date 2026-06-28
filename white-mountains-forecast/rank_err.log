@@ -1,0 +1,17 @@
+Fetching NWS point data...
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/user/home/white-mountains-forecast/wxmtn/__main__.py", line 3, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/user/home/white-mountains-forecast/wxmtn/cli.py", line 90, in main
+    print(report.rank_report(all_fc, summit_fc, times))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/home/white-mountains-forecast/wxmtn/report.py", line 251, in rank_report
+    ranked = _rank(all_fc, summits, times, bias_c, now, daylight)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/home/white-mountains-forecast/wxmtn/report.py", line 228, in _rank
+    ests = [estimate(all_fc, s, w, bias_c=bias_c, bias_from=now) for w in hours]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: 'int' object is not iterable

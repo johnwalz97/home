@@ -14,10 +14,9 @@ weather to it.
 
 ## What it does
 
-1. **Downloads** `api.weather.gov` gridpoint forecasts for 15 summits
-   (Presidentials, Franconia Range, and other 4,000-footers) and 7 lower
-   reference points (the notches and valley towns). Responses are cached under
-   `data/cache/`.
+1. **Downloads** `api.weather.gov` gridpoint forecasts for 22 summits
+   (Presidentials, Franconia Range, other 4,000-footers, and lower view-ledges)
+   plus 7 valley/notch reference points. Responses are cached under `data/cache/`.
 2. **Triangulates temperature.** At each forecast hour it least-squares fits
    temperature against elevation across *all* the points (a regional lapse
    rate), then evaluates that line at each summit's **true** elevation. On a
@@ -25,12 +24,20 @@ weather to it.
 3. **Estimates visibility.** It computes the lifting-condensation level (cloud
    base) from the valley temperature/dewpoint spread and checks whether each
    summit pokes into the cloud deck, then blends that with the grid's own
-   visibility forecast. Summits above cloud base get flagged "in the clouds /
-   fogged in."
-4. **Reports** a per-summit table (temp, wind-chill "feels like", wind + gusts,
-   sky cover, precip chance, visibility) plus a region snapshot calling out the
-   coldest peak, the windiest, and which summits will have views vs. be socked
-   in.
+   visibility forecast. Summits above cloud base get flagged "in the clouds."
+4. **Anchors the nowcast to live observations.** It folds in real-time NWS
+   station obs — including **KMWN, the Mount Washington Observatory summit** —
+   as current-hour anchors. Measured summit data corrects the lapse fit, bias-
+   corrects the near-term forecast (a decaying offset), and overrides the cloud-
+   base model (a measured-clear summit can't be "fogged in"). It also reports the
+   **observed** lapse rate and flags **temperature inversions**.
+5. **Adds the context hikers actually decide on:** plain-language per-peak
+   summaries, **sunrise/sunset + golden hour**, **active NWS alerts**, trailhead
+   route/distance/difficulty, a **0–100 score** with each peak's **best window**,
+   and a **ranking** of where to go today.
+6. **Reports** per-summit tables plus a region snapshot (coldest/windiest, who's
+   socked in vs. who has views), with a `--brief` morning digest and a
+   `--backtest` scoreboard that grades the model against what KMWN actually did.
 
 ## Usage
 
@@ -47,7 +54,20 @@ python -m wxmtn --hours 24 --step 3
 # just a couple of peaks (name substring match)
 python -m wxmtn --peak Washington --peak Lafayette
 
-# machine-readable output
+# morning brief: today's top picks + live summit conditions
+python -m wxmtn --brief
+
+# rank every peak by today's score / best window
+python -m wxmtn --rank
+
+# filter to a range, add lower spots + the MWObs higher-summits text
+python -m wxmtn --region Franconia --spots --mwobs
+
+# grade the model against the live KMWN observation, append to the log
+python -m wxmtn --backtest
+
+# skip live obs / machine-readable output
+python -m wxmtn --no-live
 python -m wxmtn --json > forecast.json
 ```
 
@@ -58,17 +78,29 @@ The NWS asks clients to identify themselves; set a contact string with
 
 | File | Purpose |
 |------|---------|
-| `wxmtn/peaks.py`  | Summit + anchor coordinates and true elevations |
+| `wxmtn/peaks.py`  | Summit + anchor + spot coordinates and true elevations |
 | `wxmtn/nws.py`    | Cached NWS API client |
 | `wxmtn/series.py` | Expands NWS ISO-interval time series into hourly lookups |
 | `wxmtn/fetch.py`  | Assembles per-location hourly forecast series |
-| `wxmtn/model.py`  | Lapse-rate fit + cloud-base / visibility model |
+| `wxmtn/obs.py`    | Live station obs (incl. KMWN) → current-hour anchors; observed lapse/inversion |
+| `wxmtn/model.py`  | Lapse fit + cloud base (obs-constrained) + obs bias-correction |
+| `wxmtn/astro.py`  | Sunrise / sunset / golden hour (pure-Python solar calc) |
+| `wxmtn/alerts.py` | Active NWS watches/warnings/advisories |
+| `wxmtn/mwobs.py`  | Best-effort Mount Washington Obs higher-summits text |
+| `wxmtn/score.py`  | View/comfort/safety scoring + best-window finder |
+| `wxmtn/summary.py`| Plain-language summaries + ridge-wind/hazard callouts |
+| `wxmtn/trailheads.py` | Trailhead route / distance / difficulty per peak |
+| `wxmtn/backtest.py` | Logs forecast vs KMWN obs and scores the model |
 | `wxmtn/report.py` | Human-readable report rendering |
 | `wxmtn/cli.py`    | Command-line entry point |
 
 ## Caveats
 
-This is a derived estimate, not an official product. The cloud-base model is a
-single regional LCL approximation and won't catch every upslope/inversion
-situation. For life-safety decisions in the Presidentials, cross-check the
+This is a derived estimate, not an official product. Live obs pin the current
+hour, but **future hours** still lean on the single regional LCL cloud-base
+approximation, which won't catch every upslope/banding situation. Wind is the
+summit grid value (not elevation-scaled), with a live-anchored "ridges are
+windier than modeled" flag when KMWN disagrees. The MWObs text cross-check is
+best-effort (their page renders client-side, so it's often unavailable here).
+For life-safety decisions in the Presidentials, cross-check the
 [Mount Washington Observatory Higher Summits Forecast](https://www.mountwashington.org/experience-the-weather/higher-summit-forecast/).

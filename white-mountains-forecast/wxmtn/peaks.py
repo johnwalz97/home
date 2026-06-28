@@ -67,3 +67,21 @@ ANCHORS = [
 ]
 
 ALL = SUMMITS + ANCHORS
+
+# Lower-elevation destinations outside the high-peaks triangulation set (lake
+# overlooks, swimming holes, coastal spots). These get a direct grid forecast --
+# they're low enough that the lapse correction isn't needed -- and are kept OUT
+# of ALL so far-away/coastal points don't skew the White Mountain lapse fit.
+SPOTS = [
+    Location("Bald Knob (Ossipee)", 43.7368, -71.3046, 548.0, "Ossipee/Lakes"),
+    Location("Rattlesnake Pool (Evans Notch)", 43.9560, -70.9870, 230.0, "Evans Notch"),
+    Location("Camden Hills (Mt Battie)", 44.2153, -69.0820, 240.0, "Midcoast Maine"),
+]
+
+
+def by_region() -> dict[str, list[Location]]:
+    """Group the forecast summits by their range for region-level rollups."""
+    out: dict[str, list[Location]] = {}
+    for s in SUMMITS:
+        out.setdefault(s.range, []).append(s)
+    return out
