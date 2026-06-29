@@ -2,9 +2,10 @@
 
 Produces a single self-contained .html file: a Leaflet topo map with a marker
 per peak coloured by that hour's score, a slider to scrub through the forecast
-(watch summits fog in and clear out), a ranked sidebar, and a click-through
-detail panel. Map tiles + Leaflet load from CDN, so viewing needs a connection;
-all the forecast data is embedded inline.
+(watch summits fog in and clear out), a ranked list, and a click-through detail
+panel. Mobile-first and responsive: on phones the map and list are tabs and the
+detail is a bottom sheet; on desktop they sit side by side. Map tiles + Leaflet
+load from CDN (graceful fallback if offline); all forecast data is embedded.
 """
 
 from __future__ import annotations
@@ -148,83 +149,144 @@ def render_html(payload: dict) -> str:
 
 _TEMPLATE = r"""<!doctype html>
 <html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0f15">
 <title>White Mountains Summit Forecast</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-  :root{--bg:#0e1116;--panel:#161b22;--ink:#e6edf3;--mut:#8b949e;--line:#30363d;}
-  *{box-sizing:border-box}
-  body{margin:0;font:14px/1.45 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-       background:var(--bg);color:var(--ink);height:100vh;overflow:hidden}
-  #app{display:grid;grid-template-columns:340px 1fr;height:100vh}
-  #side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
-  header{padding:14px 16px;border-bottom:1px solid var(--line)}
-  header h1{margin:0 0 2px;font-size:16px}
-  header .sub{color:var(--mut);font-size:12px}
-  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-  .chip{background:#21262d;border:1px solid var(--line);border-radius:20px;padding:3px 9px;font-size:11px;color:var(--mut)}
-  .chip.warn{background:#3d1d1d;border-color:#a33;color:#ffb3b3}
-  .chip.live{background:#10241a;border-color:#2ea043;color:#7ee2a8}
-  #list{overflow:auto;flex:1;padding:6px}
-  .row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer}
-  .row:hover{background:#21262d}
-  .row.active{background:#1f6feb22;outline:1px solid #1f6feb55}
-  .dot{width:12px;height:12px;border-radius:50%;flex:none;box-shadow:0 0 0 2px #0006}
-  .row .nm{flex:1;font-weight:600}
-  .row .meta{color:var(--mut);font-size:11px}
-  .row .sc{font-variant-numeric:tabular-nums;font-weight:700}
-  #main{position:relative;min-width:0}
-  #map{position:absolute;inset:0}
-  #slider{position:absolute;left:50%;transform:translateX(-50%);bottom:18px;z-index:500;
-          background:#161b22ee;border:1px solid var(--line);border-radius:12px;padding:10px 16px;
-          width:min(680px,86%);backdrop-filter:blur(6px)}
-  #slider .when{text-align:center;font-weight:700;margin-bottom:6px}
-  #slider .ctl{display:flex;align-items:center;gap:10px}
-  #slider input{width:100%}
-  #play{flex:none;width:34px;height:30px;border-radius:8px;border:1px solid var(--line);
-        background:#21262d;color:var(--ink);cursor:pointer;font-size:13px}
-  #play:hover{background:#30363d}
-  .spark{margin:8px 0}
-  .spark svg{display:block;width:100%;height:38px}
-  #detail{position:absolute;top:14px;right:14px;z-index:500;width:300px;max-height:calc(100vh - 60px);
-          overflow:auto;background:#161b22f2;border:1px solid var(--line);border-radius:12px;padding:14px;
-          backdrop-filter:blur(6px);display:none}
-  #detail h2{margin:0 0 2px;font-size:15px}
-  #detail .el{color:var(--mut);font-size:12px;margin-bottom:8px}
-  #detail .sum{font-size:13px;margin:8px 0;padding:8px;background:#0d1117;border-radius:8px;border:1px solid var(--line)}
-  table{width:100%;border-collapse:collapse;font-size:12px}
-  th,td{padding:3px 4px;text-align:right;border-bottom:1px solid #21262d}
-  th:first-child,td:first-child{text-align:left;color:var(--mut)}
+  :root{
+    --bg:#0b0f15; --panel:#121821; --panel2:#0f141c; --ink:#e8eef6; --mut:#93a1b3;
+    --line:#222c39; --accent:#4aa3ff; --good:#34d399; --ok:#fbbf24; --bad:#f87171;
+    --sheet-pad: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{height:100%; margin:0}
+  body{font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg); color:var(--ink); overscroll-behavior:none}
+  button{font:inherit}
+  #app{display:flex; flex-direction:column; height:100dvh}
+
+  header{flex:none; padding:12px 14px calc(12px) ; border-bottom:1px solid var(--line);
+         background:linear-gradient(180deg,#10161f,#0b0f15)}
+  header h1{margin:0; font-size:17px; letter-spacing:.2px}
+  header .sub{color:var(--mut); font-size:12px; margin-top:1px}
+  .chips{display:flex; gap:7px; margin-top:9px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+         scrollbar-width:none; padding-bottom:2px}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:none; background:#1a2330; border:1px solid var(--line); border-radius:999px;
+        padding:5px 11px; font-size:12px; color:var(--mut); white-space:nowrap}
+  .chip.live{background:#0e2a1d; border-color:#1f7a4d; color:#7ee2a8}
+  .chip.warn{background:#2c1414; border-color:#a33; color:#ffb3b3}
+
+  #tabs{flex:none; display:flex; gap:6px; padding:8px 14px; border-bottom:1px solid var(--line)}
+  #tabs button{flex:1; padding:9px; border-radius:10px; border:1px solid var(--line);
+        background:#131a24; color:var(--mut); font-weight:600}
+  #tabs button.on{background:var(--accent); border-color:var(--accent); color:#04121f}
+
+  #body{flex:1; position:relative; min-height:0}
+  #map{position:absolute; inset:0; background:#0f141c}
+  #side{position:absolute; inset:0; overflow-y:auto; background:var(--bg);
+        display:none; z-index:400; padding:8px}
+  body.show-list #side{display:block}
+
+  .row{display:flex; align-items:center; gap:11px; padding:11px 12px; border-radius:12px;
+       cursor:pointer; border:1px solid transparent}
+  .row:active{background:#1a2330}
+  .row.active{background:#15233a; border-color:#27457a}
+  .dot{width:13px; height:13px; border-radius:50%; flex:none; box-shadow:0 0 0 2px #0007}
+  .row .nm{flex:1; font-weight:650; font-size:15px}
+  .row .meta{color:var(--mut); font-size:12px; margin-right:2px}
+  .row .sc{font-variant-numeric:tabular-nums; font-weight:800; min-width:30px; text-align:right;
+           padding:2px 7px; border-radius:8px; background:#131a24}
+
+  #timebar{flex:none; border-top:1px solid var(--line); background:#0f141c;
+           padding:9px 14px calc(9px + var(--sheet-pad))}
+  #timebar .when{text-align:center; font-weight:750; margin-bottom:7px; font-size:15px}
+  #timebar .ctl{display:flex; align-items:center; gap:12px}
+  #play{flex:none; width:42px; height:38px; border-radius:11px; border:1px solid var(--line);
+        background:#1a2330; color:var(--ink); font-size:15px}
+  #play:active{background:#243248}
+  input[type=range]{flex:1; -webkit-appearance:none; appearance:none; height:6px; border-radius:6px;
+        background:#27323f; outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:24px; height:24px;
+        border-radius:50%; background:var(--accent); border:3px solid #0b0f15; cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:22px; height:22px; border-radius:50%;
+        background:var(--accent); border:3px solid #0b0f15; cursor:pointer}
+  .ends{display:flex; justify-content:space-between; color:var(--mut); font-size:11px; margin-top:3px}
+
+  #detail{position:fixed; left:0; right:0; bottom:0; z-index:600; background:var(--panel);
+          border-top:1px solid var(--line); border-radius:18px 18px 0 0;
+          max-height:80dvh; overflow-y:auto; transform:translateY(110%);
+          transition:transform .26s cubic-bezier(.2,.8,.2,1);
+          padding:6px 16px calc(18px + var(--sheet-pad)); box-shadow:0 -10px 40px #0008}
+  #detail.open{transform:none}
+  .grab{width:40px; height:5px; border-radius:3px; background:#36424f; margin:6px auto 12px}
+  #detail h2{margin:0 0 2px; font-size:18px}
+  #detail .el{color:var(--mut); font-size:13px}
+  #detail .x{position:absolute; top:14px; right:16px; color:var(--mut); font-size:20px; cursor:pointer}
+  .sum{font-size:14px; margin:11px 0; padding:11px; background:var(--panel2);
+       border:1px solid var(--line); border-radius:12px; line-height:1.5}
+  .bw{display:inline-block; background:#0e2a1d; color:#7ee2a8; border:1px solid #1f7a4d;
+      border-radius:8px; padding:2px 9px; font-weight:700; font-size:13px}
+  .spark{margin:10px 0 4px}
+  .spark svg{display:block; width:100%; height:42px}
+  table{width:100%; border-collapse:collapse; font-size:13px; margin-top:8px}
+  th,td{padding:6px 6px; text-align:right; border-bottom:1px solid #1b2531}
+  th:first-child,td:first-child{text-align:left; color:var(--mut)}
+  th{color:var(--mut); font-weight:600; position:sticky; top:0; background:var(--panel)}
   td.cloud{color:#f0a36b}
-  .x{float:right;cursor:pointer;color:var(--mut)}
-  .legend{position:absolute;left:14px;bottom:18px;z-index:500;background:#161b22ee;border:1px solid var(--line);
-          border-radius:10px;padding:8px 10px;font-size:11px;color:var(--mut)}
-  .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px}
-  .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#161b22;color:var(--ink)}
+
+  .legend{display:none}
+  .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#121821; color:var(--ink)}
+  .leaflet-control-attribution{font-size:10px}
+
+  /* ---- Desktop: side-by-side, detail docked right, no tabs ---- */
+  @media (min-width:820px){
+    #tabs{display:none}
+    #body{display:flex}
+    #map{position:relative; inset:auto; flex:1; order:2}
+    #side{position:relative; inset:auto; display:block; width:360px; flex:none; order:1;
+          border-right:1px solid var(--line); z-index:auto}
+    #detail{position:absolute; top:14px; right:14px; left:auto; bottom:auto; width:340px;
+            max-height:calc(100% - 96px); transform:none; display:none; border-radius:16px;
+            border:1px solid var(--line); padding-top:14px}
+    #detail.open{display:block}
+    #detail .grab{display:none}
+    .legend{display:block; position:absolute; left:14px; bottom:16px; z-index:450;
+            background:#121821ee; border:1px solid var(--line); border-radius:10px;
+            padding:8px 11px; font-size:11px; color:var(--mut)}
+    .legend i{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; vertical-align:-1px}
+  }
 </style></head>
-<body><div id="app">
-  <div id="side">
-    <header>
-      <h1>White Mountains Summit Forecast</h1>
-      <div class="sub" id="gen"></div>
-      <div class="chips" id="chips"></div>
-    </header>
-    <div id="list"></div>
+<body>
+<div id="app">
+  <header>
+    <h1>White Mountains Summit Forecast</h1>
+    <div class="sub" id="gen"></div>
+    <div class="chips" id="chips"></div>
+  </header>
+  <div id="tabs">
+    <button data-t="map" class="on">🗺️ Map</button>
+    <button data-t="list">📋 Peaks</button>
   </div>
-  <div id="main">
+  <div id="body">
     <div id="map"></div>
-    <div id="detail"></div>
+    <div id="side"><div id="list"></div></div>
     <div class="legend">
-      <div><i style="background:#2ecc71"></i>great &nbsp;<i style="background:#f1c40f"></i>ok &nbsp;<i style="background:#e74c3c"></i>poor &nbsp;<i style="background:#8b949e"></i>spot</div>
+      <div><i style="background:#34d399"></i>great <i style="background:#fbbf24"></i>ok
+        <i style="background:#f87171"></i>poor</div>
       <div style="margin-top:3px">◍ ring = in the clouds that hour</div>
     </div>
-    <div id="slider">
-      <div class="when" id="when"></div>
-      <div class="ctl"><button id="play" title="play/pause">▶</button>
-        <input id="hr" type="range" min="0" value="0" step="1"/></div>
-    </div>
+  </div>
+  <div id="timebar">
+    <div class="when" id="when"></div>
+    <div class="ctl"><button id="play" aria-label="play">▶</button>
+      <input id="hr" type="range" min="0" value="0" step="1"/></div>
+    <div class="ends"><span id="e0"></span><span id="e1"></span></div>
   </div>
 </div>
+<div id="detail"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const D = /*__DATA__*/null;
@@ -233,101 +295,95 @@ const mix=(a,b,t)=>a.map((v,i)=>Math.round(v+(b[i]-v)*t));
 const rgb=c=>`rgb(${c[0]},${c[1]},${c[2]})`;
 function scoreColor(s){
   if(s==null) return '#8b949e';
-  const G=[46,204,113],Y=[241,196,15],R=[231,76,60];
+  const G=[52,211,153],Y=[251,191,36],R=[248,113,113];
   return s>=50 ? rgb(mix(Y,G,(s-50)/50)) : rgb(mix(R,Y,s/50));
 }
-// The map is an enhancement: if Leaflet/tiles can't load (offline), the ranked
-// list, detail panel, and slider still work entirely from the embedded data.
+
+// ---- map (enhancement; list+detail work without it) ----
 let map=null, markers=[], mapOK=(typeof L!=='undefined');
-if(mapOK){
-  try{
-    map = L.map('map',{zoomControl:true}).setView([44.18,-71.35],10);
-    L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{
-      maxZoom:17, attribution:'© OpenTopoMap (CC-BY-SA), © OpenStreetMap'}).addTo(map);
-    markers = D.peaks.map(p=>{
-      const m = L.circleMarker([p.lat,p.lon],{radius:9,weight:2,color:'#0008',fillOpacity:.95});
-      m.peak = p; m.addTo(map);
-      m.on('click',()=>select(p));
-      m.bindTooltip(p.name,{direction:'top'});
-      return m;
-    });
-    map.fitBounds(L.latLngBounds(D.peaks.map(p=>[p.lat,p.lon])).pad(.12));
-  }catch(e){ mapOK=false; }
-}
-if(!mapOK){
-  document.getElementById('map').innerHTML =
-    '<div style="display:flex;height:100%;align-items:center;justify-content:center;'+
-    'color:#8b949e;text-align:center;padding:24px">The topo map needs a connection '+
-    '(Leaflet + tiles).<br>The ranked list and details on the left work offline.</div>';
-}
+if(mapOK){ try{
+  map = L.map('map',{zoomControl:true, attributionControl:true}).setView([44.18,-71.35],10);
+  L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{
+    maxZoom:17, attribution:'© OpenTopoMap, © OpenStreetMap'}).addTo(map);
+  markers = D.peaks.map(p=>{
+    const m=L.circleMarker([p.lat,p.lon],{radius:9,weight:2,color:'#0008',fillOpacity:.95});
+    m.peak=p; m.addTo(map); m.on('click',()=>select(p));
+    m.bindTooltip(p.name,{direction:'top'}); return m;
+  });
+  map.fitBounds(L.latLngBounds(D.peaks.map(p=>[p.lat,p.lon])).pad(.12));
+}catch(e){ mapOK=false; } }
+if(!mapOK){ document.getElementById('map').innerHTML=
+  '<div style="display:flex;height:100%;align-items:center;justify-content:center;color:#93a1b3;'+
+  'text-align:center;padding:24px">Topo map needs a connection.<br>The Peaks list works offline.</div>'; }
+
 function hourOf(p){ return p.hours[Math.min(idx,p.hours.length-1)]; }
 function refresh(){
-  document.getElementById('when').textContent = D.labels[idx] || '';
+  document.getElementById('when').textContent = D.labels[idx]||'';
   if(mapOK) markers.forEach(m=>{
-    const h = hourOf(m.peak);
-    const sc = m.peak.type==='spot' ? (h.cloud?20:75) : h.score;
+    const h=hourOf(m.peak), sc=m.peak.type==='spot'?(h.cloud?20:75):h.score;
     m.setStyle({fillColor:scoreColor(m.peak.type==='spot'?null:sc),
-                color: h.cloud ? '#cfe' : '#0008',
-                weight: h.cloud ? 3 : 2,
-                radius: m.peak.type==='spot'?7:9,
-                dashArray: h.cloud ? '3 3' : null});
+      color:h.cloud?'#dff':'#0008', weight:h.cloud?3:2,
+      radius:m.peak.type==='spot'?7:9, dashArray:h.cloud?'3 3':null});
   });
   buildList();
   if(selected) renderDetail(selected);
 }
 function buildList(){
-  const L0 = document.getElementById('list'); L0.innerHTML='';
-  const ps = D.peaks.slice().sort((a,b)=>(b.day_score??-1)-(a.day_score??-1));
-  ps.forEach(p=>{
-    const h = hourOf(p);
-    const div = document.createElement('div');
+  const L0=document.getElementById('list'); L0.innerHTML='';
+  D.peaks.slice().sort((a,b)=>(b.day_score??-1)-(a.day_score??-1)).forEach(p=>{
+    const h=hourOf(p), div=document.createElement('div');
     div.className='row'+(selected&&selected.name===p.name?' active':'');
-    div.innerHTML = `<span class="dot" style="background:${scoreColor(p.type==='spot'?null:h.score)}"></span>
+    div.innerHTML=`<span class="dot" style="background:${scoreColor(p.type==='spot'?null:h.score)}"></span>
       <span class="nm">${p.name}</span>
-      <span class="meta">${p.elev_ft.toLocaleString()}'${h.cloud?' · ◍ cloud':''}</span>
+      <span class="meta">${p.elev_ft.toLocaleString()}'${h.cloud?' · ◍':''}</span>
       <span class="sc">${p.day_score??'·'}</span>`;
-    div.onclick=()=>{select(p); if(mapOK) map.panTo([p.lat,p.lon]);};
+    div.onclick=()=>{ select(p); if(mapOK) map.panTo([p.lat,p.lon]); };
     L0.appendChild(div);
   });
 }
 function sparkline(p){
-  const sc = p.hours.map(h=>h.score);
+  const sc=p.hours.map(h=>h.score);
   if(sc.every(s=>s==null)) return '';
-  const W=272,H=38,n=sc.length, dx=W/Math.max(1,n-1);
-  const pts = sc.map((s,i)=>`${(i*dx).toFixed(1)},${(H-2-(s??0)/100*(H-4)).toFixed(1)}`);
-  // mark current hour
-  const cx=(idx*dx).toFixed(1), cy=(H-2-(sc[Math.min(idx,n-1)]??0)/100*(H-4)).toFixed(1);
-  // daylight-ish: just show the score trace + current dot
+  const W=300,H=42,n=sc.length,dx=W/Math.max(1,n-1);
+  const pts=sc.map((s,i)=>`${(i*dx).toFixed(1)},${(H-3-(s??0)/100*(H-6)).toFixed(1)}`);
+  const j=Math.min(idx,n-1), cx=(j*dx).toFixed(1), cy=(H-3-(sc[j]??0)/100*(H-6)).toFixed(1);
   return `<div class="spark"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <polyline fill="none" stroke="#1f6feb" stroke-width="2" points="${pts.join(' ')}"/>
-    <line x1="0" y1="${H-2-55/100*(H-4)}" x2="${W}" y2="${H-2-55/100*(H-4)}" stroke="#30363d" stroke-dasharray="3 3"/>
-    <circle cx="${cx}" cy="${cy}" r="3.5" fill="#7ee2a8"/></svg>
-    <div class="el" style="margin:0">score over the next ${n}h (dot = selected hour)</div></div>`;
+    <line x1="0" y1="${H-3-55/100*(H-6)}" x2="${W}" y2="${H-3-55/100*(H-6)}" stroke="#2a3744" stroke-dasharray="3 3"/>
+    <polyline fill="none" stroke="#4aa3ff" stroke-width="2.5" points="${pts.join(' ')}"/>
+    <circle cx="${cx}" cy="${cy}" r="4" fill="#7ee2a8"/></svg></div>`;
 }
 function renderDetail(p){
-  const d=document.getElementById('detail'); d.style.display='block';
-  const rows = p.hours.map((h,i)=>`<tr${i===idx?' style="background:#1f6feb22"':''}>
+  const d=document.getElementById('detail'); d.classList.add('open');
+  const rows=p.hours.map((h,i)=>`<tr${i===idx?' style="background:#16243a"':''}>
     <td>${h.t}</td><td>${h.temp??'·'}°</td><td>${h.feels??'·'}</td>
     <td>${h.wind??'·'}</td><td>${h.pop??'·'}%</td>
     <td class="${h.cloud?'cloud':''}">${h.cloud?'cloud':(h.vis||'').split(' ')[0]}</td></tr>`).join('');
-  d.innerHTML=`<span class="x" onclick="document.getElementById('detail').style.display='none'">✕</span>
-    <h2>${p.name}</h2><div class="el">${p.elev_ft.toLocaleString()} ft · ${p.range}${p.day_score!=null?` · score ${p.day_score}/100`:''}</div>
+  d.innerHTML=`<div class="grab"></div>
+    <span class="x" onclick="closeDetail()">✕</span>
+    <h2>${p.name}</h2>
+    <div class="el">${p.elev_ft.toLocaleString()} ft · ${p.range}${p.day_score!=null?` · score ${p.day_score}/100`:''}</div>
     ${sparkline(p)}
     ${p.summary?`<div class="sum">${p.summary}</div>`:''}
-    ${p.best_window?`<div class="el">Best window: <b style="color:#7ee2a8">${p.best_window}</b></div>`:''}
+    ${p.best_window?`<div class="el" style="margin-bottom:6px">Best window: <span class="bw">${p.best_window}</span></div>`:''}
     ${p.trailhead?`<div class="el">🥾 ${p.trailhead}</div>`:''}
-    <table><tr><th>time</th><th>temp</th><th>feels</th><th>wind</th><th>rain</th><th>sky</th></tr>${rows}</table>`;
+    <table><thead><tr><th>time</th><th>temp</th><th>feels</th><th>wind</th><th>rain</th><th>sky</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
 }
+function closeDetail(){ selected=null; document.getElementById('detail').classList.remove('open'); buildList(); }
 function select(p){ selected=p; renderDetail(p); buildList(); }
 
-document.getElementById('gen').textContent = 'Updated '+D.generated;
+// ---- header chips ----
+document.getElementById('gen').textContent='Updated '+D.generated;
 const chips=document.getElementById('chips');
 if(D.summit_now){const s=D.summit_now;
-  chips.innerHTML += `<span class="chip live">Mt Washington now: ${s.temp}°F · ${s.wind} mph · ${s.cloud?'in cloud':s.vis_mi+' mi'}</span>`;}
-if(D.sunrise) chips.innerHTML += `<span class="chip">☀ ${D.sunrise}–${D.sunset}</span>`;
-D.alerts.forEach(a=> chips.innerHTML += `<span class="chip warn">⚠ ${a}</span>`);
+  chips.innerHTML+=`<span class="chip live">Mt Washington now · ${s.temp}°F · ${s.wind} mph · ${s.cloud?'in cloud':s.vis_mi+' mi'}</span>`;}
+if(D.sunrise) chips.innerHTML+=`<span class="chip">☀ ${D.sunrise} – ${D.sunset}</span>`;
+D.alerts.forEach(a=> chips.innerHTML+=`<span class="chip warn">⚠ ${a}</span>`);
 
+// ---- time slider + play ----
 const hr=document.getElementById('hr'); hr.max=D.labels.length-1;
+document.getElementById('e0').textContent=D.labels[0]||'';
+document.getElementById('e1').textContent=D.labels[D.labels.length-1]||'';
 hr.oninput=e=>{idx=+e.target.value; refresh();};
 let timer=null; const playBtn=document.getElementById('play');
 playBtn.onclick=()=>{
@@ -335,5 +391,15 @@ playBtn.onclick=()=>{
   playBtn.textContent='⏸';
   timer=setInterval(()=>{idx=(idx+1)%D.labels.length; hr.value=idx; refresh();},650);
 };
+
+// ---- mobile tabs ----
+function setTab(t){
+  document.body.classList.toggle('show-list', t==='list');
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
+  if(t==='map' && mapOK) setTimeout(()=>map.invalidateSize(),60);
+}
+document.querySelectorAll('#tabs button').forEach(b=> b.onclick=()=>setTab(b.dataset.t));
+window.addEventListener('resize',()=>{ if(mapOK) map.invalidateSize(); });
+
 refresh();
 </script></body></html>"""
