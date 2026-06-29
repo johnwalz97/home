@@ -240,6 +240,13 @@ _TEMPLATE = r"""<!doctype html>
   .legend{display:none}
   .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#121821; color:var(--ink)}
   .leaflet-control-attribution{font-size:10px}
+  /* dark-theme the layer switcher */
+  .leaflet-control-layers{background:#121821 !important; color:var(--ink);
+        border:1px solid var(--line) !important; border-radius:10px; box-shadow:0 6px 20px #0007}
+  .leaflet-control-layers-toggle{background-color:#121821; border-radius:8px; filter:invert(.92)}
+  .leaflet-control-layers-expanded{padding:8px 10px}
+  .leaflet-control-layers label{margin:3px 0; font-size:13px}
+  .leaflet-control-layers-separator{border-top:1px solid var(--line)}
 
   /* ---- Desktop: side-by-side, detail docked right, no tabs ---- */
   @media (min-width:820px){
@@ -303,8 +310,49 @@ function scoreColor(s){
 let map=null, markers=[], mapOK=(typeof L!=='undefined');
 if(mapOK){ try{
   map = L.map('map',{zoomControl:true, attributionControl:true}).setView([44.18,-71.35],10);
-  L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{
-    maxZoom:17, attribution:'© OpenTopoMap, © OpenStreetMap'}).addTo(map);
+
+  // Basemaps — all free / no key. Esri & USGS use {z}/{y}/{x} tile order.
+  const bases={
+    'Topographic': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+      {maxZoom:17, attribution:'© OpenTopoMap, © OSM'}),
+    'Satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      {maxZoom:18, attribution:'© Esri, Maxar'}),
+    'Dark': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      {maxZoom:19, attribution:'© CARTO, © OSM'}),
+    'USGS Topo': L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
+      {maxZoom:16, attribution:'USGS The National Map'}),
+    'USGS Imagery+Topo': L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryTopo/MapServer/tile/{z}/{y}/{x}',
+      {maxZoom:16, attribution:'USGS The National Map'}),
+    'NatGeo': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
+      {maxZoom:16, attribution:'© Esri, National Geographic'}),
+    'CyclOSM': L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
+      {maxZoom:18, attribution:'CyclOSM, © OSM'}),
+  };
+  bases['Topographic'].addTo(map);
+
+  // Overlays
+  const overlays={
+    'Hiking trails': L.tileLayer('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png',
+      {opacity:.85, attribution:'© waymarkedtrails.org'}),
+  };
+  // NASA GIBS true-colour clouds (use yesterday UTC for guaranteed availability)
+  const gd=new Date(Date.now()-86400000).toISOString().slice(0,10);
+  overlays['Satellite clouds']=L.tileLayer(
+    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/'
+    +gd+'/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
+    {maxNativeZoom:9, maxZoom:17, opacity:.8, attribution:'NASA GIBS'});
+
+  const layerCtl=L.control.layers(bases, overlays, {collapsed:true, position:'topright'}).addTo(map);
+
+  // Live precip radar (RainViewer, fetched at view-time so it's always current)
+  fetch('https://api.rainviewer.com/public/weather-maps.json').then(r=>r.json()).then(j=>{
+    const fr=(j.radar.past||[]).concat(j.radar.nowcast||[]); if(!fr.length) return;
+    const last=fr[fr.length-1];
+    const radar=L.tileLayer(j.host+last.path+'/256/{z}/{x}/{y}/4/1_1.png',
+      {opacity:.6, attribution:'© RainViewer'});
+    layerCtl.addOverlay(radar,'Precip radar · now');
+  }).catch(()=>{});
+
   markers = D.peaks.map(p=>{
     const m=L.circleMarker([p.lat,p.lon],{radius:9,weight:2,color:'#0008',fillOpacity:.95});
     m.peak=p; m.addTo(map); m.on('click',()=>select(p));
