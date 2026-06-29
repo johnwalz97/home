@@ -31,6 +31,70 @@ def _hour_label(when: datetime) -> str:
     return when.astimezone(EASTERN).strftime("%a %-I%p").lower()
 
 
+def _fmt_win(win):
+    if not win:
+        return None
+    if win.hours > 1:
+        return (f"{win.start.astimezone(EASTERN):%-I%p}–"
+                f"{win.end.astimezone(EASTERN):%-I%p}").lower()
+    return f"around {win.start.astimezone(EASTERN):%-I%p}".lower()
+
+
+def _aggregate_days(h_ests, loc):
+    """Per-calendar-day rollup (daylight-focused) for the multi-day planner."""
+    bydate = {}
+    for e in h_ests:
+        bydate.setdefault(e.when.astimezone(EASTERN).date(), []).append(e)
+    days = []
+    for d in sorted(bydate):
+        s = sun_times(d, loc.lat, loc.lon)
+        dl = (s.get("sunrise"), s.get("sunset")) if s.get("sunrise") else None
+        ests_d = bydate[d]
+        day_ests = ([e for e in ests_d if dl[0] <= e.when <= dl[1]] or ests_d) if dl else ests_d
+        scored = [(e.when, composite(e)) for e in day_ests]
+        win = best_window(scored, threshold=55)
+        dscore = round(win.avg_score) if win else round(max((x for _, x in scored), default=0))
+        temps = [e.temp_f for e in ests_d if e.temp_f is not None]
+        cloud_pct = round(100 * sum(1 for e in day_ests if e.in_cloud) / max(1, len(day_ests)))
+        days.append({
+            "date": d.isoformat(),
+            "label": d.strftime("%a %-m/%-d").lower(),
+            "weekday": d.strftime("%a"),
+            "score": dscore,
+            "best_window": _fmt_win(win),
+            "hi": round(max(temps)) if temps else None,
+            "lo": round(min(temps)) if temps else None,
+            "cloud_pct": cloud_pct,
+            "sunrise": s["sunrise"].astimezone(EASTERN).strftime("%-I:%M%p").lower() if s.get("sunrise") else None,
+            "sunset": s["sunset"].astimezone(EASTERN).strftime("%-I:%M%p").lower() if s.get("sunset") else None,
+        })
+    return days
+
+
+def _hazards(h_ests, loc):
+    """Plain-language hazard flags from the next ~36h of daytime conditions."""
+    near = h_ests[:36]
+    winds = [e.wind_mph for e in near if e.wind_mph is not None]
+    gusts = [e.gust_mph for e in near if e.gust_mph is not None]
+    feels = [e.feels_like_f for e in near if e.feels_like_f is not None]
+    pops = [e.pop_pct for e in near if e.pop_pct is not None]
+    temps = [e.temp_f for e in near if e.temp_f is not None]
+    flags = []
+    if gusts and max(gusts) >= 45:
+        flags.append({"l": "warn", "t": f"High wind · gusts {round(max(gusts))} mph"})
+    elif winds and max(winds) >= 30:
+        flags.append({"l": "warn", "t": f"Windy · to {round(max(winds))} mph"})
+    if feels and min(feels) <= 20:
+        flags.append({"l": "warn", "t": f"Wind chill to {round(min(feels))}°F"})
+    elif temps and min(temps) <= 32:
+        flags.append({"l": "info", "t": "Below freezing up high"})
+    if pops and max(pops) >= 40:
+        flags.append({"l": "warn", "t": f"Thunder/precip risk {round(max(pops))}%"})
+    if loc.elevation_m * 3.28084 >= 4500:
+        flags.append({"l": "info", "t": "Above treeline · fully exposed"})
+    return flags
+
+
 def _peak_payload(all_fc, summit, times, hourly, bias_c, now, daylight):
     ests = [estimate(all_fc, summit, w, bias_c=bias_c, bias_from=now) for w in times]
     h_ests = [estimate(all_fc, summit, w, bias_c=bias_c, bias_from=now) for w in hourly]
@@ -43,6 +107,8 @@ def _peak_payload(all_fc, summit, times, hourly, bias_c, now, daylight):
     win = best_window(day, threshold=55)
     day_score = round(win.avg_score, 0) if win else (
         round(max((s for _, s in day), default=0), 0))
+    days = _aggregate_days(h_ests, summit.loc)
+    best_day = max(days, key=lambda x: x["score"]) if days else None
     th = for_peak(summit.loc.name)
     return {
         "name": summit.loc.name,
@@ -52,14 +118,15 @@ def _peak_payload(all_fc, summit, times, hourly, bias_c, now, daylight):
         "range": summit.loc.range,
         "type": "summit",
         "day_score": day_score,
-        "best_window": (
-            f"{win.start.astimezone(EASTERN):%-I%p}–{win.end.astimezone(EASTERN):%-I%p}".lower()
-            if win and win.hours > 1 else
-            (f"around {win.start.astimezone(EASTERN):%-I%p}".lower() if win else None)
-        ),
+        "best_window": _fmt_win(win),
+        "days": days,
+        "best_day": ({"label": best_day["label"], "score": best_day["score"],
+                      "window": best_day["best_window"]} if best_day else None),
+        "flags": _hazards(h_ests, summit.loc),
         "summary": peak_summary(summit.loc.name, h_ests, daylight),
         "trailhead": (f"{th.route} · {th.round_trip_mi:.1f} mi · {th.difficulty}"
                       if th else None),
+        "difficulty": th.difficulty if th else None,
         "hours": [
             {
                 "t": _hour_label(e.when),
@@ -67,6 +134,8 @@ def _peak_payload(all_fc, summit, times, hourly, bias_c, now, daylight):
                 "feels": round(e.feels_like_f) if e.feels_like_f is not None else None,
                 "wind": round(e.wind_mph) if e.wind_mph is not None else None,
                 "gust": round(e.gust_mph) if e.gust_mph is not None else None,
+                "wdir": (round(summit.value("wind_dir_deg", e.when))
+                         if summit.value("wind_dir_deg", e.when) is not None else None),
                 "pop": round(e.pop_pct) if e.pop_pct is not None else None,
                 "vis": e.visibility_label,
                 "cloud": e.in_cloud,
@@ -119,6 +188,21 @@ def build_payload(all_fc, summits, times, spot_fc=None) -> dict:
     if spot_fc:
         peaks_pl += [_spot_payload(fc, times) for fc in spot_fc.values()]
 
+    # Planner: for each forecast day, rank the peaks by that day's score.
+    planner = []
+    canon = next((p["days"] for p in peaks_pl if p.get("days")), [])
+    for i, dref in enumerate(canon):
+        ranked = sorted(
+            (p for p in peaks_pl if p.get("days") and i < len(p["days"])),
+            key=lambda p: p["days"][i]["score"], reverse=True)
+        planner.append({
+            "label": dref["label"], "weekday": dref["weekday"],
+            "sunrise": dref.get("sunrise"), "sunset": dref.get("sunset"),
+            "top": [{"name": p["name"], "score": p["days"][i]["score"],
+                     "window": p["days"][i]["best_window"],
+                     "elev_ft": p["elev_ft"]} for p in ranked[:6]],
+        })
+
     obs = next((fc for fc in all_fc.values()
                 if getattr(fc, "observation", None) and fc.loc.is_summit), None)
     summit_now = None
@@ -139,6 +223,8 @@ def build_payload(all_fc, summits, times, spot_fc=None) -> dict:
         "sunset": sun["sunset"].astimezone(EASTERN).strftime("%-I:%M%p").lower() if sun.get("sunset") else None,
         "summit_now": summit_now,
         "alerts": [a["event"] for a in al[:5]],
+        "day_labels": [d["label"] for d in canon],
+        "planner": planner,
         "peaks": peaks_pl,
     }
 

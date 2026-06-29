@@ -16,6 +16,7 @@ _VARS = {
     "visibility": "vis_m",
     "windSpeed": "wind_kmh",
     "windGust": "gust_kmh",
+    "windDirection": "wind_dir_deg",
     "probabilityOfPrecipitation": "pop_pct",
     "relativeHumidity": "rh_pct",
 }
