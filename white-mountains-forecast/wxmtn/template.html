@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>White Mountains Summit Forecast — DATUM</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  crossorigin="" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0C0E; --s1:#101317; --s2:#161A1F; --s3:#1c2127;
+  --hair:#1F262D; --hair2:#272F37; --hair3:#323b44;
+  --txt:#D7DDE2; --txt2:#9aa6b0; --txt3:#697680; --txt4:#4c5660;
+  --cyan:#36D6E7; --cyan-dim:rgba(54,214,231,.16);
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --disp:'Space Grotesk',system-ui,sans-serif;
+  --ui:'Inter',system-ui,sans-serif;
+  --num:"tnum" 1,"zero" 1;
+  --railL:320px; --railR:360px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg); color:var(--txt); font-family:var(--ui);
+  font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+.mono{font-family:var(--mono); font-feature-settings:var(--num); font-variant-numeric:tabular-nums slashed-zero;}
+.disp{font-family:var(--disp); text-transform:uppercase; letter-spacing:.09em;}
+button{font-family:inherit; color:inherit; cursor:pointer; background:none; border:none}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--hair2);border-radius:6px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:var(--hair3)}
+
+/* dotted survey grid texture */
+.grid-bg{
+  background-image:radial-gradient(circle, rgba(160,180,200,.06) .6px, transparent .6px);
+  background-size:14px 14px;
+}
+
+/* ===== Layout shell ===== */
+#app{display:flex; flex-direction:column; height:100dvh; height:100vh;}
+header.bar{
+  flex:0 0 auto; border-bottom:1px solid var(--hair);
+  background:linear-gradient(180deg,var(--s1),var(--bg));
+  display:flex; align-items:center; gap:14px; padding:9px 14px;
+  flex-wrap:wrap;
+}
+.brand{display:flex; align-items:baseline; gap:10px; min-width:0;}
+.brand .logo{
+  font-family:var(--disp); font-weight:700; letter-spacing:.16em; font-size:13px;
+  color:var(--cyan); border:1px solid var(--hair2); padding:3px 7px; border-radius:3px;
+  background:var(--s2);
+}
+.brand h1{
+  font-family:var(--disp); text-transform:uppercase; letter-spacing:.1em;
+  font-size:13px; font-weight:600; color:var(--txt); margin:0; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis;
+}
+.brand .sub{font-family:var(--mono); font-size:10px; color:var(--txt3); letter-spacing:.05em;}
+.chips{display:flex; gap:8px; margin-left:auto; flex-wrap:wrap; align-items:center;}
+.chip{
+  display:inline-flex; align-items:center; gap:6px; border:1px solid var(--hair2);
+  background:var(--s2); border-radius:3px; padding:4px 8px;
+  font-family:var(--mono); font-size:10.5px; color:var(--txt2); letter-spacing:.04em;
+  font-feature-settings:var(--num);
+}
+.chip b{color:var(--txt); font-weight:600;}
+.chip .k{color:var(--txt3); text-transform:uppercase; letter-spacing:.12em; font-size:9px;}
+.chip.live::before{content:""; width:6px; height:6px; border-radius:50%; background:var(--cyan); box-shadow:0 0 7px var(--cyan);}
+.chip.alert{border-color:#5a3520; background:#1c130b; color:#f2b441;}
+.chip.alert .k{color:#a9742c;}
+.chip.warnpulse{animation:annunc 1.4s steps(2,end) infinite;}
+@keyframes annunc{50%{opacity:.45}}
+
+/* ===== Mobile tabs ===== */
+.mtabs{display:none;}
+
+/* ===== Main 3-bay ===== */
+.console{flex:1 1 auto; display:flex; min-height:0; position:relative;}
+.rail{display:flex; flex-direction:column; min-height:0; background:var(--bg);}
+.railL{flex:0 0 var(--railL); border-right:1px solid var(--hair);}
+.center{flex:1 1 auto; min-width:0; position:relative; display:flex; flex-direction:column;}
+.railR{flex:0 0 var(--railR); border-left:1px solid var(--hair); background:var(--s1);}
+.railR.empty .detail-body{display:none;}
+.railR.empty .detail-empty{display:flex;}
+
+.rail-head{
+  flex:0 0 auto; padding:9px 13px; border-bottom:1px solid var(--hair);
+  display:flex; align-items:center; gap:8px; background:var(--s1);
+}
+.rail-head .ttl{font-family:var(--disp); text-transform:uppercase; letter-spacing:.13em; font-size:11px; color:var(--txt2);}
+.rail-head .ct{margin-left:auto; font-family:var(--mono); font-size:10px; color:var(--txt3);}
+.rail-scroll{flex:1 1 auto; overflow-y:auto; overflow-x:hidden;}
+
+/* ===== Map ===== */
+#map{position:absolute; inset:0; background:#0c0f12; z-index:1;}
+.leaflet-container{background:#0c0f12; font-family:var(--mono);}
+.map-fallback{
+  position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+  flex-direction:column; gap:8px; padding:24px; text-align:center; z-index:5;
+}
+.map-fallback .ico{font-size:26px; opacity:.5}
+.map-fallback p{max-width:340px; color:var(--txt2); font-size:13px;}
+.map-clock{
+  position:absolute; top:10px; left:10px; z-index:600;
+  background:rgba(10,12,14,.82); border:1px solid var(--hair2); border-radius:4px;
+  padding:6px 10px; backdrop-filter:blur(6px);
+  font-family:var(--mono); font-feature-settings:var(--num);
+  pointer-events:none;
+}
+.map-clock .big{font-size:14px; color:var(--cyan); font-weight:600; letter-spacing:.03em;}
+.map-clock .sm{font-size:9.5px; color:var(--txt3); text-transform:uppercase; letter-spacing:.1em;}
+
+/* Leaflet control theming */
+.leaflet-bar a,.leaflet-bar a:hover{
+  background:var(--s2); color:var(--txt); border-bottom:1px solid var(--hair);
+}
+.leaflet-control-layers{
+  background:rgba(16,19,23,.94)!important; border:1px solid var(--hair2)!important;
+  border-radius:5px!important; color:var(--txt); backdrop-filter:blur(8px);
+  box-shadow:none!important;
+}
+.leaflet-control-layers-toggle{
+  background-color:var(--s2); background-image:none!important; width:34px; height:34px;
+  border:1px solid var(--hair2); border-radius:5px; position:relative;
+}
+.leaflet-control-layers-toggle::after{
+  content:"LYR"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-family:var(--disp); font-size:9px; letter-spacing:.08em; color:var(--cyan);
+}
+.leaflet-control-layers-expanded{padding:8px 10px;}
+.leaflet-control-layers-list{font-family:var(--ui); font-size:12px;}
+.leaflet-control-layers label{margin:3px 0; display:flex; align-items:center; gap:6px; color:var(--txt2);}
+.leaflet-control-layers-separator{border-top:1px solid var(--hair2); margin:7px -2px;}
+.leaflet-control-layers input{accent-color:var(--cyan);}
+.leaflet-control-attribution{
+  background:rgba(10,12,14,.7)!important; color:var(--txt4)!important; font-size:9px!important;
+}
+.leaflet-control-attribution a{color:var(--txt3)!important;}
+.leaflet-control-zoom a{font-size:16px; line-height:30px; color:var(--txt)!important;}
+.mk-tip{
+  background:rgba(10,12,14,.92)!important; border:1px solid var(--hair2)!important; color:var(--txt)!important;
+  font-family:var(--disp); text-transform:uppercase; letter-spacing:.06em; font-size:10px!important;
+  box-shadow:none!important; border-radius:3px!important;
+}
+.mk-tip::before{border-top-color:var(--hair2)!important;}
+.reticle-pulse{animation:retic 2.4s ease-in-out infinite;}
+@keyframes retic{0%,100%{opacity:.9}50%{opacity:.4}}
+
+/* ===== List rows ===== */
+.list-row{
+  display:grid; grid-template-columns:46px 1fr auto; align-items:center; gap:10px;
+  padding:9px 13px; border-bottom:1px solid var(--hair); cursor:pointer; position:relative;
+}
+.list-row:hover{background:var(--s1);}
+.list-row.sel{background:var(--s2);}
+.list-row.sel::before{content:""; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--cyan);}
+.lr-score{
+  font-family:var(--mono); font-feature-settings:var(--num); font-size:17px; font-weight:600;
+  text-align:right; line-height:1;
+}
+.lr-score .u{font-size:9px; color:var(--txt3); display:block; text-align:right; letter-spacing:.1em; font-weight:400;}
+.lr-main{min-width:0;}
+.lr-name{font-family:var(--disp); text-transform:uppercase; letter-spacing:.05em; font-size:12.5px; color:var(--txt); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.lr-meta{font-family:var(--mono); font-size:10px; color:var(--txt3); display:flex; gap:8px; margin-top:2px; align-items:center;}
+.lr-bar{height:4px; border-radius:2px; background:var(--hair); position:relative; overflow:hidden; margin-top:6px;}
+.lr-bar > i{position:absolute; left:0; top:0; bottom:0; border-radius:2px; transition:width .18s ease, background .18s ease;}
+.lr-right{display:flex; flex-direction:column; align-items:flex-end; gap:5px;}
+.dot{width:12px; height:12px; border-radius:50%; border:1px solid #0008; flex:0 0 auto;}
+.cloud-pill{
+  font-family:var(--mono); font-size:8.5px; letter-spacing:.08em; color:#aeb8c0;
+  border:1px dashed #5c6670; border-radius:3px; padding:1px 4px; display:inline-flex; gap:3px; align-items:center;
+  background:repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(160,170,180,.07) 3px,rgba(160,170,180,.07) 6px);
+}
+
+/* ===== Detail ===== */
+.detail-empty{display:none; flex:1; align-items:center; justify-content:center; flex-direction:column; gap:10px; color:var(--txt3); padding:30px; text-align:center;}
+.detail-empty .ico{font-size:30px; opacity:.4;}
+.detail-empty .t{font-family:var(--disp); letter-spacing:.12em; font-size:11px;}
+.detail-body{display:flex; flex-direction:column; min-height:0; height:100%;}
+.detail-head{flex:0 0 auto; padding:12px 15px 10px; border-bottom:1px solid var(--hair);}
+.detail-head .nm{font-family:var(--disp); text-transform:uppercase; letter-spacing:.06em; font-size:17px; color:#fff; line-height:1.1;}
+.detail-head .mt{font-family:var(--mono); font-size:10.5px; color:var(--txt3); margin-top:4px; display:flex; gap:10px; flex-wrap:wrap;}
+.detail-scroll{flex:1 1 auto; overflow-y:auto; padding:14px 15px 24px;}
+
+/* gauge */
+.gauge-wrap{display:flex; gap:14px; align-items:center; margin-bottom:14px;}
+.gauge{position:relative; width:148px; height:118px; flex:0 0 auto;}
+.gauge svg{display:block;}
+.gauge .center{position:absolute; left:0; right:0; top:50%; transform:translateY(-42%); text-align:center; pointer-events:none;}
+.gauge .gnum{font-family:var(--mono); font-feature-settings:var(--num); font-size:38px; font-weight:600; line-height:1;}
+.gauge .gunit{font-family:var(--mono); font-size:9px; color:var(--txt3); letter-spacing:.18em; margin-top:2px;}
+.gauge-side{min-width:0;}
+.verdict{font-family:var(--disp); text-transform:uppercase; letter-spacing:.06em; font-size:20px; line-height:1; margin-bottom:7px;}
+.gv-row{font-family:var(--mono); font-size:11px; color:var(--txt2); display:flex; gap:6px; margin-top:5px; font-feature-settings:var(--num);}
+.gv-row .k{color:var(--txt3); width:42px; text-transform:uppercase; letter-spacing:.08em; font-size:9.5px; padding-top:1px;}
+.now-vals{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;}
+.nv{border:1px solid var(--hair2); background:var(--s2); border-radius:4px; padding:5px 8px; font-family:var(--mono); font-feature-settings:var(--num);}
+.nv .k{font-size:8.5px; color:var(--txt3); text-transform:uppercase; letter-spacing:.1em; display:block;}
+.nv .v{font-size:14px; color:var(--txt); font-weight:500;}
+
+.section-t{font-family:var(--disp); text-transform:uppercase; letter-spacing:.13em; font-size:10px; color:var(--txt3); margin:16px 0 8px; display:flex; align-items:center; gap:8px;}
+.section-t::after{content:""; flex:1; height:1px; background:var(--hair2);}
+.summary{font-family:var(--ui); font-size:13px; color:var(--txt2); line-height:1.5;}
+.summary b{color:var(--txt); font-weight:600;}
+.kv{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-family:var(--mono); font-size:11.5px; font-feature-settings:var(--num);}
+.kv .k{color:var(--txt3); text-transform:uppercase; letter-spacing:.07em; font-size:10px;}
+.kv .v{color:var(--txt);}
+
+/* sparkline */
+.spark-wrap{border:1px solid var(--hair2); border-radius:5px; padding:8px; background:var(--s1);}
+.spark-wrap svg{display:block; width:100%; height:74px;}
+.spark-legend{display:flex; justify-content:space-between; font-family:var(--mono); font-size:9px; color:var(--txt3); margin-top:3px; letter-spacing:.04em;}
+
+/* table */
+.tbl-wrap{border:1px solid var(--hair2); border-radius:5px; overflow:hidden;}
+.tbl-scroll{max-height:300px; overflow-y:auto;}
+table.hours{width:100%; border-collapse:collapse; font-family:var(--mono); font-feature-settings:var(--num); font-size:11px;}
+table.hours th{
+  position:sticky; top:0; background:var(--s2); color:var(--txt3); font-weight:500;
+  text-transform:uppercase; letter-spacing:.06em; font-size:9px; padding:5px 6px; text-align:right; border-bottom:1px solid var(--hair2); z-index:1;
+}
+table.hours th:first-child,table.hours td:first-child{text-align:left;}
+table.hours td{padding:4px 6px; text-align:right; color:var(--txt2); border-bottom:1px solid var(--hair); white-space:nowrap;}
+table.hours tr:last-child td{border-bottom:none;}
+table.hours tr.cur td{background:var(--cyan-dim); color:var(--txt);}
+table.hours tr.cur td:first-child{position:relative;}
+table.hours tr.cur td:first-child::before{content:""; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--cyan);}
+table.hours tr.night td{color:var(--txt3);}
+.sky-dot{display:inline-block; width:8px; height:8px; border-radius:50%; vertical-align:-1px; margin-right:3px;}
+
+/* ===== Scrubber footer dock ===== */
+footer.dock{
+  flex:0 0 auto; border-top:1px solid var(--hair);
+  background:linear-gradient(0deg,var(--s1),var(--bg));
+  padding:9px 14px calc(9px + env(safe-area-inset-bottom)) 14px;
+}
+.dock-row{display:flex; align-items:center; gap:12px;}
+.transport{display:flex; align-items:center; gap:6px; flex:0 0 auto;}
+.tbtn{
+  width:36px; height:36px; border:1px solid var(--hair2); background:var(--s2); border-radius:5px;
+  display:flex; align-items:center; justify-content:center; color:var(--txt); font-size:14px;
+}
+.tbtn:hover{border-color:var(--hair3); background:var(--s3);}
+.tbtn.play{background:var(--cyan); border-color:var(--cyan); color:#04181b;}
+.tbtn.play:hover{background:#54e0ee;}
+.speed{
+  font-family:var(--mono); font-size:11px; min-width:34px; height:36px; border:1px solid var(--hair2);
+  background:var(--s2); border-radius:5px; color:var(--txt2); font-feature-settings:var(--num);
+}
+.speed.on{color:var(--cyan); border-color:var(--cyan-dim);}
+.time-tag{
+  flex:0 0 auto; font-family:var(--mono); font-feature-settings:var(--num);
+  border:1px solid var(--hair2); background:var(--s2); border-radius:5px; padding:5px 10px; min-width:118px; text-align:center;
+}
+.time-tag .big{font-size:14px; color:var(--cyan); font-weight:600;}
+.time-tag .sm{font-size:9px; color:var(--txt3); text-transform:uppercase; letter-spacing:.1em;}
+
+/* slide-rule track */
+.scrub{flex:1 1 auto; position:relative; min-width:0;}
+.scrub-track{
+  position:relative; height:46px; border:1px solid var(--hair2); border-radius:6px; overflow:hidden;
+  background:var(--s1); cursor:pointer; touch-action:none;
+}
+.scrub-heat{position:absolute; inset:0;}
+.scrub-heat .cell{position:absolute; top:0; bottom:0;}
+.scrub-night{position:absolute; top:0; bottom:0; background:rgba(0,0,0,.34); pointer-events:none;}
+.scrub-ticks{position:absolute; inset:0; pointer-events:none;}
+.scrub-ticks .tk{position:absolute; top:0; width:1px; background:rgba(255,255,255,.07); height:7px;}
+.scrub-ticks .tk.maj{background:rgba(255,255,255,.18); top:0; bottom:0; height:auto;}
+.scrub-ticks .tk .lbl{position:absolute; bottom:2px; left:3px; font-family:var(--mono); font-size:8px; color:var(--txt3); letter-spacing:.04em;}
+.scrub-ticks .ev{position:absolute; top:0; bottom:0; width:1px; background:repeating-linear-gradient(0deg,#f2b441,#f2b441 3px,transparent 3px,transparent 6px);}
+.scrub-ticks .ev .glyph{position:absolute; top:1px; left:2px; font-size:8px; color:#f2b441;}
+.scrub-thumb{
+  position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--cyan); z-index:5;
+  box-shadow:0 0 8px var(--cyan); pointer-events:none; transition:left .12s ease;
+}
+.scrub-thumb::before{content:""; position:absolute; left:-4px; top:-4px; width:10px; height:10px; background:var(--cyan); border-radius:2px; box-shadow:0 0 8px var(--cyan);}
+.scrub-thumb::after{content:""; position:absolute; left:-4px; bottom:-4px; width:10px; height:10px; background:var(--cyan); border-radius:2px;}
+.scrub-flag{
+  position:absolute; bottom:50px; transform:translateX(-50%); white-space:nowrap;
+  font-family:var(--mono); font-size:10px; font-feature-settings:var(--num); color:var(--cyan);
+  background:rgba(10,12,14,.9); border:1px solid var(--cyan-dim); border-radius:4px; padding:2px 7px;
+  pointer-events:none; transition:left .12s ease; z-index:6;
+}
+.scrub-legend{display:flex; justify-content:space-between; margin-top:4px; font-family:var(--mono); font-size:8.5px; color:var(--txt4); letter-spacing:.05em;}
+
+/* ===== Responsive ===== */
+@media(max-width:1080px){
+  :root{--railR:320px;}
+}
+@media(max-width:860px){
+  body{overflow:hidden;}
+  header.bar{padding:8px 11px;}
+  .brand h1{display:none;}
+  .chips{width:100%; margin-left:0;}
+  .mtabs{display:flex; flex:0 0 auto; border-bottom:1px solid var(--hair); background:var(--s1);}
+  .mtabs button{
+    flex:1; padding:10px; font-family:var(--disp); text-transform:uppercase; letter-spacing:.1em;
+    font-size:11px; color:var(--txt3); border-bottom:2px solid transparent;
+  }
+  .mtabs button.on{color:var(--cyan); border-bottom-color:var(--cyan); background:var(--s2);}
+  .console{flex-direction:column;}
+  .railL,.railR{flex:1 1 auto; border:none; width:100%; min-height:0;}
+  .center{flex:1 1 auto; min-height:42vh;}
+  .console[data-tab="map"] .railL,
+  .console[data-tab="map"] .railR{display:none;}
+  .console[data-tab="list"] .center,
+  .console[data-tab="list"] .railR{display:none;}
+  .console[data-tab="detail"] .center,
+  .console[data-tab="detail"] .railL{display:none;}
+  footer.dock{position:sticky; bottom:0; z-index:20;}
+  .time-tag{min-width:96px;}
+  .tbtn,.speed{width:40px; height:40px;}
+  .dock-row{flex-wrap:wrap; gap:10px;}
+  .scrub{order:-1; flex:1 0 100%; width:100%;}
+  .scrub-flag{display:none;}
+}
+@media(max-width:420px){
+  .chip{font-size:9.5px; padding:3px 6px;}
+  .dock-row{gap:8px;}
+  .transport{gap:4px;}
+  .time-tag{min-width:84px; padding:5px 7px;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="bar">
+    <div class="brand">
+      <span class="logo">DATUM</span>
+      <h1>White Mountains Summit Forecast</h1>
+      <span class="sub" id="genTag">UPD —</span>
+    </div>
+    <div class="chips" id="chips"></div>
+  </header>
+
+  <div class="mtabs" id="mtabs">
+    <button data-tab="map" class="on">Map</button>
+    <button data-tab="list">List</button>
+    <button data-tab="detail">Detail</button>
+  </div>
+
+  <div class="console" id="console" data-tab="map">
+    <aside class="rail railL">
+      <div class="rail-head">
+        <span class="ttl">Ranked Summits</span>
+        <span class="ct" id="listCount"></span>
+      </div>
+      <div class="rail-scroll grid-bg" id="list"></div>
+    </aside>
+
+    <main class="center">
+      <div id="map"></div>
+      <div class="map-fallback grid-bg" id="mapFallback">
+        <div class="ico">⊕</div>
+        <p>Map view unavailable. The ranked list, detail panel, and time scrubber remain fully operational.</p>
+      </div>
+      <div class="map-clock" id="mapClock">
+        <div class="big mono" id="clockBig">—</div>
+        <div class="sm" id="clockSm">SCRUB TIME</div>
+      </div>
+    </main>
+
+    <aside class="rail railR empty" id="railR">
+      <div class="rail-head">
+        <span class="ttl">Peak Detail</span>
+        <span class="ct" id="detRange"></span>
+      </div>
+      <div class="detail-empty">
+        <div class="ico">⌖</div>
+        <div class="t">Select a summit</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--txt4)">Tap a marker or list row</div>
+      </div>
+      <div class="detail-body" id="detail"></div>
+    </aside>
+  </div>
+
+  <footer class="dock">
+    <div class="dock-row">
+      <div class="transport">
+        <button class="tbtn" id="prevBtn" title="Step back">‹</button>
+        <button class="tbtn play" id="playBtn" title="Play / pause">▶</button>
+        <button class="tbtn" id="nextBtn" title="Step forward">›</button>
+        <button class="speed" id="speedBtn" title="Speed">1×</button>
+      </div>
+      <div class="time-tag">
+        <div class="big mono" id="ttBig">—</div>
+        <div class="sm" id="ttSm">hour 0</div>
+      </div>
+      <div class="scrub">
+        <div class="scrub-flag" id="scrubFlag" style="left:0">—</div>
+        <div class="scrub-track" id="scrubTrack">
+          <div class="scrub-heat" id="scrubHeat"></div>
+          <div class="scrub-ticks" id="scrubTicks"></div>
+          <div class="scrub-thumb" id="scrubThumb" style="left:0"></div>
+        </div>
+        <div class="scrub-legend">
+          <span>NOW</span><span id="legMid">+18H</span><span id="legEnd">+36H</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  crossorigin=""></script>
+<script>
+const D = /*__DATA__*/null;
+
+/* ============================== OKLCH ramp ============================== */
+function srgb2lin(c){c/=255;return c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);}
+function lin2srgb(c){const v=c<=0.0031308?12.92*c:1.055*Math.pow(c,1/2.4)-0.055;return Math.max(0,Math.min(255,Math.round(v*255)));}
+function hex2oklab(hex){
+  const r=srgb2lin(parseInt(hex.slice(1,3),16)),g=srgb2lin(parseInt(hex.slice(3,5),16)),b=srgb2lin(parseInt(hex.slice(5,7),16));
+  const l=0.4122214708*r+0.5363325363*g+0.0514459929*b;
+  const m=0.2119034982*r+0.6806995451*g+0.1073969566*b;
+  const s=0.0883024619*r+0.2817188376*g+0.6299787005*b;
+  const l_=Math.cbrt(l),m_=Math.cbrt(m),s_=Math.cbrt(s);
+  return [0.2104542553*l_+0.7936177850*m_-0.0040720468*s_,
+          1.9779984951*l_-2.4285922050*m_+0.4505937099*s_,
+          0.0259040371*l_+0.7827717662*m_-0.8086757660*s_];
+}
+function oklab2rgb(L,a,b){
+  const l_=L+0.3963377774*a+0.2158037573*b;
+  const m_=L-0.1055613458*a-0.0638541728*b;
+  const s_=L-0.0894841775*a-1.2914855480*b;
+  const l=l_*l_*l_,m=m_*m_*m_,s=s_*s_*s_;
+  const r=+4.0767416621*l-3.3077115913*m+0.2309699292*s;
+  const g=-1.2684380046*l+2.6097574011*m-0.3413193965*s;
+  const bb=-0.0041960863*l-0.7034186147*m+1.7076147010*s;
+  return [lin2srgb(r),lin2srgb(g),lin2srgb(bb)];
+}
+function lab2lch(L,a,b){const C=Math.hypot(a,b);let H=Math.atan2(b,a);if(H<0)H+=2*Math.PI;return[L,C,H];}
+function lch2lab(L,C,H){return[L,C*Math.cos(H),C*Math.sin(H)];}
+const RAMP_STOPS=[[0,'#E4453A'],[25,'#F2792B'],[45,'#F2B441'],[65,'#C8D43E'],[82,'#7FCB4F'],[100,'#34C26A']]
+  .map(function(pair){var L=hex2oklab(pair[1]);return[pair[0],lab2lch(L[0],L[1],L[2])];});
+function rampColor(v){
+  if(v==null||isNaN(v)) return '#5a646e';
+  v=Math.max(0,Math.min(100,v));
+  let i=0; while(i<RAMP_STOPS.length-1 && v>RAMP_STOPS[i+1][0]) i++;
+  const p0=RAMP_STOPS[i][0], c0=RAMP_STOPS[i][1];
+  const j=Math.min(i+1,RAMP_STOPS.length-1);
+  const p1=RAMP_STOPS[j][0], c1=RAMP_STOPS[j][1];
+  const t=p1===p0?0:(v-p0)/(p1-p0);
+  let h0=c0[2],h1=c1[2]; let dh=h1-h0;
+  if(dh>Math.PI)dh-=2*Math.PI; if(dh<-Math.PI)dh+=2*Math.PI;
+  const L=c0[0]+(c1[0]-c0[0])*t, C=c0[1]+(c1[1]-c0[1])*t, H=h0+dh*t;
+  const lab=lch2lab(L,C,H);
+  const rgb=oklab2rgb(lab[0],lab[1],lab[2]);
+  return 'rgb('+rgb[0]+','+rgb[1]+','+rgb[2]+')';
+}
+
+/* ============================== State ============================== */
+const N = (D && D.labels) ? D.labels.length : 0;
+let idx = 0;
+let selPeak = null;
+let playing = false, playTimer = null, speed = 1;
+const peaks = (D && D.peaks) ? D.peaks.slice() : [];
+const rankedPeaks = peaks.slice().sort(function(a,b){return (b.day_score==null?-1:b.day_score)-(a.day_score==null?-1:a.day_score);});
+
+const $=function(s,r){return (r||document).querySelector(s);};
+const $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s));};
+function el(t,c,h){var e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;}
+function score(p,i){const h=p.hours&&p.hours[i];return h?h.score:null;}
+function isCloud(p,i){const h=p.hours&&p.hours[i];return h?!!h.cloud:false;}
+
+/* ============================== Sun shading helpers ============================== */
+function labelHour(lbl){
+  if(!lbl) return null;
+  const m=String(lbl).match(/(\d{1,2})\s*(am|pm)/i);
+  if(!m) return null;
+  let h=parseInt(m[1],10)%12; if(/pm/i.test(m[2]))h+=12;
+  return h;
+}
+function parseClock(s){
+  if(!s) return null;
+  const m=String(s).match(/(\d{1,2}):?(\d{2})?\s*(am|pm)/i);
+  if(!m) return null;
+  let h=parseInt(m[1],10)%12; if(/pm/i.test(m[3]))h+=12;
+  return h + (m[2]?parseInt(m[2],10)/60:0);
+}
+const sunriseH = parseClock(D&&D.sunrise);
+const sunsetH = parseClock(D&&D.sunset);
+function isNightHour(h){
+  if(h==null) return false;
+  const sr=sunriseH==null?6:sunriseH, ss=sunsetH==null?20:sunsetH;
+  return h<sr || h>=ss;
+}
+
+/* ============================== Header ============================== */
+function buildHeader(){
+  $('#genTag').textContent = 'UPD ' + ((D&&D.generated)||'—');
+  const chips=$('#chips'); chips.innerHTML='';
+  const sn = D&&D.summit_now;
+  if(sn){
+    const c=el('div','chip live');
+    c.innerHTML='<span class="k">MWN LIVE</span> <b>'+sn.temp+'°</b> <span style="color:var(--txt3)">·</span> <b>'+sn.wind+'</b><span style="color:var(--txt3)">mph</span> <span style="color:var(--txt3)">·</span> <b>'+sn.vis_mi+'</b><span style="color:var(--txt3)">mi</span>'+(sn.cloud?' <span style="color:var(--txt3)">·</span> ≈':'');
+    chips.appendChild(c);
+  }
+  if(D&&D.sunrise){const c=el('div','chip');c.innerHTML='<span class="k">RISE</span> <b>'+D.sunrise+'</b>';chips.appendChild(c);}
+  if(D&&D.sunset){const c=el('div','chip');c.innerHTML='<span class="k">SET</span> <b>'+D.sunset+'</b>';chips.appendChild(c);}
+  ((D&&D.alerts)||[]).forEach(function(a){
+    const c=el('div','chip alert warnpulse');
+    c.innerHTML='<span class="k">⚠ ALERT</span> <b>'+a+'</b>';
+    chips.appendChild(c);
+  });
+}
+
+/* ============================== Map ============================== */
+let map=null, mapOK=false, markers={}, layerCtl=null, reticleLayer=null;
+function showFallback(){ $('#mapFallback').style.display='flex'; $('#mapClock').style.display='none'; }
+function initMap(){
+  if(typeof L==='undefined'){ showFallback(); return; }
+  try{
+    map=L.map('map',{zoomControl:true,attributionControl:true,preferCanvas:true}).setView([44.27,-71.30],10);
+    const A='© OpenStreetMap, SRTM | © OpenTopoMap', E='Esri', C='© CARTO', U='USGS', NG='Esri/NatGeo';
+    const topo=L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:A});
+    const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:E});
+    const dark=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:20,attribution:C});
+    const usgsTopo=L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,attribution:U});
+    const usgsImg=L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryTopo/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,attribution:U});
+    const natgeo=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,attribution:NG});
+    const cyclo=L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',{maxZoom:18,attribution:'CyclOSM | '+A});
+    topo.addTo(map);
+
+    const trails=L.tileLayer('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png',{maxZoom:18,opacity:.85,attribution:'waymarkedtrails.org'});
+    const yd=new Date(Date.now()-864e5);
+    const ymd=yd.getUTCFullYear()+'-'+String(yd.getUTCMonth()+1).padStart(2,'0')+'-'+String(yd.getUTCDate()).padStart(2,'0');
+    const gibs=L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/'+ymd+'/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',{maxNativeZoom:9,maxZoom:17,opacity:.85,attribution:'NASA GIBS'});
+
+    layerCtl=L.control.layers(
+      {'Topographic':topo,'Satellite':sat,'Dark':dark,'USGS Topo':usgsTopo,'USGS Imagery+Topo':usgsImg,'NatGeo':natgeo,'CyclOSM':cyclo},
+      {'Hiking trails':trails,'Satellite clouds':gibs},
+      {collapsed:true,position:'topright'}
+    ).addTo(map);
+
+    fetch('https://api.rainviewer.com/public/weather-maps.json')
+      .then(function(r){return r.json();}).then(function(j){
+        const frames=(j.radar&&j.radar.past)||[];
+        const last=frames[frames.length-1];
+        if(last && j.host){
+          const radar=L.tileLayer(j.host+last.path+'/256/{z}/{x}/{y}/4/1_1.png',{opacity:0.6,maxNativeZoom:10,maxZoom:17,attribution:'RainViewer'});
+          layerCtl.addOverlay(radar,'Precip radar');
+        }
+      }).catch(function(){});
+
+    mapOK=true;
+    buildMarkers();
+    window.addEventListener('resize',function(){ if(mapOK) map.invalidateSize(); });
+  }catch(e){
+    console.warn('map init failed',e);
+    showFallback();
+  }
+}
+function buildMarkers(){
+  peaks.forEach(function(p){
+    const m=L.circleMarker([p.lat,p.lon],{radius:8,weight:1,color:'#0a0c0e',fillColor:'#5a646e',fillOpacity:1});
+    m.on('click',function(){selectPeak(p);});
+    m.bindTooltip(p.name,{direction:'top',className:'mk-tip',offset:[0,-6]});
+    m.addTo(map);
+    markers[p.name]={marker:m};
+  });
+  updateMarkers();
+}
+function updateMarkers(){
+  if(!mapOK) return;
+  peaks.forEach(function(p){
+    const obj=markers[p.name]; if(!obj) return;
+    const s=score(p,idx), col=rampColor(s), cloud=isCloud(p,idx);
+    obj.marker.setStyle({
+      fillColor:col,
+      color:cloud?'#9aa6b0':'#0a0c0e',
+      weight:cloud?2:1,
+      dashArray:cloud?'2,3':null,
+      radius: (selPeak&&selPeak.name===p.name)?9:8
+    });
+  });
+  updateReticle();
+}
+function updateReticle(){
+  if(!mapOK) return;
+  if(reticleLayer){ map.removeLayer(reticleLayer); reticleLayer=null; }
+  if(selPeak){
+    reticleLayer=L.circleMarker([selPeak.lat,selPeak.lon],{
+      radius:15,weight:1.4,color:'#36D6E7',fill:false,dashArray:'3,4',className:'reticle-pulse',interactive:false
+    }).addTo(map);
+  }
+}
+
+/* ============================== Ranked list ============================== */
+function buildList(){
+  const list=$('#list'); list.innerHTML='';
+  $('#listCount').textContent=rankedPeaks.length+' PK';
+  rankedPeaks.forEach(function(p){
+    const row=el('div','list-row');
+    row.dataset.name=p.name;
+    row.innerHTML=
+      '<div class="lr-score"><span class="sv">—</span><span class="u">SCORE</span></div>'+
+      '<div class="lr-main">'+
+        '<div class="lr-name">'+p.name+'</div>'+
+        '<div class="lr-meta"><span>'+((p.elev_ft||0).toLocaleString())+' ft</span><span>'+(p.range||'')+'</span></div>'+
+        '<div class="lr-bar"><i></i></div>'+
+      '</div>'+
+      '<div class="lr-right"><span class="dot"></span><span class="cloud-slot"></span></div>';
+    row.addEventListener('click',function(){selectPeak(p);});
+    list.appendChild(row);
+  });
+  updateList();
+}
+function updateList(){
+  $$('#list .list-row').forEach(function(row){
+    const p=peaks.find(function(x){return x.name===row.dataset.name;}); if(!p) return;
+    const s=score(p,idx), col=rampColor(s), cloud=isCloud(p,idx);
+    const sv=row.querySelector('.sv'); sv.textContent = s==null?'––':s; sv.style.color=col;
+    row.querySelector('.dot').style.background=col;
+    const bar=row.querySelector('.lr-bar > i');
+    bar.style.width=(s==null?0:s)+'%'; bar.style.background=col;
+    row.querySelector('.cloud-slot').innerHTML = cloud?'<span class="cloud-pill">≈ IN CLOUD</span>':'';
+    row.classList.toggle('sel', !!selPeak&&selPeak.name===p.name);
+  });
+}
+
+/* ============================== Detail ============================== */
+function verdictWord(s){
+  if(s==null) return ['NO DATA','#5a646e'];
+  if(s>=82) return ['PRIME', rampColor(s)];
+  if(s>=65) return ['GOOD', rampColor(s)];
+  if(s>=45) return ['FAIR', rampColor(s)];
+  if(s>=25) return ['ROUGH', rampColor(s)];
+  return ['SEVERE', rampColor(s)];
+}
+function selectPeak(p){
+  selPeak=p;
+  $('#railR').classList.remove('empty');
+  if(window.matchMedia('(max-width:860px)').matches){ setTab('detail'); }
+  if(mapOK){ map.panTo([p.lat,p.lon],{animate:true,duration:.4}); }
+  renderDetail();
+  updateMarkers();
+  updateList();
+}
+function renderDetail(){
+  if(!selPeak) return;
+  const p=selPeak;
+  $('#detRange').textContent=p.range||'';
+  const det=$('#detail');
+  det.innerHTML=
+    '<div class="detail-head">'+
+      '<div class="nm">'+p.name+'</div>'+
+      '<div class="mt">'+
+        '<span>'+((p.elev_ft||0).toLocaleString())+' FT</span>'+
+        '<span>'+p.lat.toFixed(3)+', '+p.lon.toFixed(3)+'</span>'+
+        '<span>'+(p.type==='summit'?'SUMMIT':String(p.type||'').toUpperCase())+'</span>'+
+      '</div>'+
+    '</div>'+
+    '<div class="detail-scroll">'+
+      '<div class="gauge-wrap">'+
+        '<div class="gauge" id="gauge"></div>'+
+        '<div class="gauge-side">'+
+          '<div class="verdict" id="verdict">—</div>'+
+          '<div class="gv-row"><span class="k">Day</span><span id="dayScore">—</span></div>'+
+          '<div class="gv-row"><span class="k">Best</span><span>'+(p.best_window||'—')+'</span></div>'+
+          '<div class="now-vals" id="nowVals"></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="section-t">Outlook</div>'+
+      '<div class="summary" id="summary">'+(p.summary||'No summary available for this peak.')+'</div>'+
+      '<div class="section-t">Trailhead</div>'+
+      '<div class="kv">'+
+        '<span class="k">Access</span><span class="v">'+(p.trailhead||'—')+'</span>'+
+        '<span class="k">Best Window</span><span class="v">'+(p.best_window||'—')+'</span>'+
+      '</div>'+
+      '<div class="section-t">36-Hour Score</div>'+
+      '<div class="spark-wrap">'+
+        '<svg id="spark" viewBox="0 0 360 74" preserveAspectRatio="none"></svg>'+
+        '<div class="spark-legend"><span>NOW</span><span id="sparkBest"></span><span>+'+(N-1)+'H</span></div>'+
+      '</div>'+
+      '<div class="section-t">Hourly</div>'+
+      '<div class="tbl-wrap"><div class="tbl-scroll"><table class="hours" id="htbl"></table></div></div>'+
+    '</div>';
+  drawSpark();
+  drawTable();
+  updateDetailLive();
+}
+function drawGauge(){
+  const g=$('#gauge'); if(!g) return;
+  const s=score(selPeak,idx);
+  const W=148,H=118,cx=74,cy=78,R=58;
+  const start=150, end=390;
+  function pol(deg,r){const a=deg*Math.PI/180;return[cx+r*Math.cos(a),cy+r*Math.sin(a)];}
+  function arc(a0,a1,r){
+    const A=pol(a0,r),B=pol(a1,r);
+    const large=(a1-a0)>180?1:0;
+    return 'M'+A[0].toFixed(1)+' '+A[1].toFixed(1)+' A'+r+' '+r+' 0 '+large+' 1 '+B[0].toFixed(1)+' '+B[1].toFixed(1);
+  }
+  const frac = s==null?0:Math.max(0,Math.min(100,s))/100;
+  const valAng = start+(end-start)*frac;
+  let ticks='';
+  for(let i=0;i<=10;i++){
+    const a=start+(end-start)*(i/10);
+    const maj=i%5===0;
+    const P0=pol(a,R+(maj?3:4)), P1=pol(a,R+(maj?12:9));
+    ticks+='<line x1="'+P0[0].toFixed(1)+'" y1="'+P0[1].toFixed(1)+'" x2="'+P1[0].toFixed(1)+'" y2="'+P1[1].toFixed(1)+'" stroke="'+(maj?'#3a444d':'#262e36')+'" stroke-width="'+(maj?1.4:1)+'"/>';
+  }
+  const col=rampColor(s);
+  g.innerHTML='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'">'+
+    ticks+
+    '<path d="'+arc(start,end,R)+'" fill="none" stroke="#1F262D" stroke-width="9" stroke-linecap="round"/>'+
+    '<path d="'+arc(start,valAng,R)+'" fill="none" stroke="'+col+'" stroke-width="9" stroke-linecap="round" style="transition:stroke .18s"/>'+
+    '</svg>'+
+    '<div class="center"><div class="gnum mono" style="color:'+col+'">'+(s==null?'––':s)+'</div><div class="gunit">/ 100</div></div>';
+}
+function drawSpark(){
+  const svg=$('#spark'); if(!svg||!selPeak) return;
+  const W=360,H=74,pad=4;
+  const vals=selPeak.hours.map(function(h){return h.score;});
+  const n=vals.length;
+  const X=function(i){return pad+(W-2*pad)*(n<2?0:i/(n-1));};
+  const Y=function(v){return v==null?(H-pad):(H-pad)-(H-2*pad)*(Math.max(0,Math.min(100,v))/100);};
+  let bands='';
+  selPeak.hours.forEach(function(h,i){
+    if(isNightHour(labelHour(D.labels[i]))){
+      const w=(W-2*pad)/Math.max(1,(n-1));
+      const x0=X(i)-w/2;
+      bands+='<rect x="'+Math.max(0,x0).toFixed(1)+'" y="0" width="'+w.toFixed(1)+'" height="'+H+'" fill="rgba(0,0,0,.28)"/>';
+    }
+  });
+  let segs='';
+  for(let i=0;i<n-1;i++){
+    if(vals[i]==null||vals[i+1]==null) continue;
+    const mid=(vals[i]+vals[i+1])/2;
+    segs+='<line x1="'+X(i).toFixed(1)+'" y1="'+Y(vals[i]).toFixed(1)+'" x2="'+X(i+1).toFixed(1)+'" y2="'+Y(vals[i+1]).toFixed(1)+'" stroke="'+rampColor(mid)+'" stroke-width="2" stroke-linecap="round"/>';
+  }
+  let bestU='', bestStart=-1,bestEnd=-1,run=-1,runS=-1;
+  for(let i=0;i<n;i++){
+    if(vals[i]!=null&&vals[i]>=65){ if(runS<0)runS=i; if(i-runS>run){run=i-runS;bestStart=runS;bestEnd=i;} }
+    else runS=-1;
+  }
+  if(bestStart>=0){
+    bestU='<line x1="'+X(bestStart).toFixed(1)+'" y1="'+(H-1.5)+'" x2="'+X(bestEnd).toFixed(1)+'" y2="'+(H-1.5)+'" stroke="#7FCB4F" stroke-width="2.5"/>';
+    $('#sparkBest').textContent='BEST '+String(D.labels[bestStart]||'').toUpperCase();
+  } else if($('#sparkBest')){ $('#sparkBest').textContent=''; }
+  const nowX=X(idx);
+  svg.innerHTML=bands+bestU+segs+
+    '<line id="sparkNow" x1="'+nowX.toFixed(1)+'" y1="0" x2="'+nowX.toFixed(1)+'" y2="'+H+'" stroke="#36D6E7" stroke-width="1.4"/>'+
+    '<circle id="sparkDot" cx="'+nowX.toFixed(1)+'" cy="'+Y(vals[idx]).toFixed(1)+'" r="3" fill="#36D6E7" stroke="#04181b" stroke-width="1"/>';
+}
+function drawTable(){
+  const t=$('#htbl'); if(!t||!selPeak) return;
+  let html='<thead><tr><th>Time</th><th>Temp</th><th>Feels</th><th>Wind</th><th>Rain</th><th>Sky</th></tr></thead><tbody>';
+  selPeak.hours.forEach(function(h,i){
+    const night=isNightHour(labelHour(D.labels[i]));
+    const sky = h.cloud ? '<span class="sky-dot" style="background:#9aa6b0"></span>CLD' : (h.vis||'—');
+    const windStr = h.wind==null?'—':(h.wind+(h.gust?'('+h.gust+')':''));
+    html+='<tr class="hr '+(night?'night':'')+'" data-i="'+i+'">'+
+      '<td>'+String(D.labels[i]||'').toUpperCase()+'</td>'+
+      '<td>'+(h.temp==null?'—':h.temp+'°')+'</td>'+
+      '<td>'+(h.feels==null?'—':h.feels+'°')+'</td>'+
+      '<td>'+windStr+'</td>'+
+      '<td>'+(h.pop==null?'—':h.pop+'%')+'</td>'+
+      '<td>'+sky+'</td></tr>';
+  });
+  html+='</tbody>';
+  t.innerHTML=html;
+  highlightTableRow();
+}
+function highlightTableRow(){
+  if(!$('#htbl')) return;
+  $$('#htbl tr.hr').forEach(function(r){r.classList.toggle('cur', +r.dataset.i===idx);});
+  const cur=$('#htbl tr.hr[data-i="'+idx+'"]');
+  if(cur && cur.scrollIntoView){ try{cur.scrollIntoView({block:'nearest'});}catch(e){} }
+}
+function updateDetailLive(){
+  if(!selPeak) return;
+  const s=score(selPeak,idx);
+  const vw=verdictWord(s);
+  const vEl=$('#verdict'); if(vEl){vEl.textContent=vw[0]; vEl.style.color=vw[1];}
+  const dEl=$('#dayScore'); if(dEl) dEl.textContent=(selPeak.day_score==null?'—':selPeak.day_score);
+  const h=(selPeak.hours&&selPeak.hours[idx])||{};
+  const nv=$('#nowVals');
+  if(nv){
+    nv.innerHTML=
+      '<div class="nv"><span class="k">Temp</span><span class="v">'+(h.temp==null?'—':h.temp+'°')+'</span></div>'+
+      '<div class="nv"><span class="k">Wind</span><span class="v">'+(h.wind==null?'—':h.wind)+'<span style="font-size:9px;color:var(--txt3)"> mph</span></span></div>'+
+      '<div class="nv"><span class="k">Gust</span><span class="v">'+(h.gust==null?'—':h.gust)+'</span></div>'+
+      '<div class="nv"><span class="k">Vis</span><span class="v">'+(h.vis||'—')+'</span></div>'+
+      (h.cloud?'<div class="nv" style="border-color:#5c6670;background:repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(160,170,180,.08) 4px,rgba(160,170,180,.08) 8px)"><span class="k">Sky</span><span class="v" style="font-size:11px">≈ IN CLOUD</span></div>':'');
+  }
+  drawGauge();
+  drawSpark();
+  highlightTableRow();
+}
+
+/* ============================== Scrubber ============================== */
+function topScoreAt(i){
+  let best=null;
+  peaks.forEach(function(p){const s=score(p,i); if(s!=null&&(best==null||s>best))best=s;});
+  return best;
+}
+function buildScrubber(){
+  const heat=$('#scrubHeat'), ticks=$('#scrubTicks');
+  heat.innerHTML=''; ticks.innerHTML='';
+  if(N<1) return;
+  const wpc=100/N;
+  for(let i=0;i<N;i++){
+    const c=el('div','cell');
+    c.style.left=(i*wpc)+'%'; c.style.width=wpc+'%';
+    const ts=topScoreAt(i);
+    c.style.background=ts==null?'#13171b':rampColor(ts);
+    heat.appendChild(c);
+    if(isNightHour(labelHour(D.labels[i]))){
+      const ng=el('div','scrub-night'); ng.style.left=(i*wpc)+'%'; ng.style.width=wpc+'%';
+      ticks.appendChild(ng);
+    }
+  }
+  for(let i=0;i<N;i++){
+    const h=labelHour(D.labels[i]);
+    const maj = h!=null && (h%6===0);
+    const tk=el('div','tk'+(maj?' maj':''));
+    tk.style.left=(i*wpc+wpc/2)+'%';
+    if(maj){ tk.innerHTML='<span class="lbl">'+String(h).padStart(2,'0')+'</span>'; }
+    ticks.appendChild(tk);
+  }
+  [['☀',sunriseH],['☾',sunsetH]].forEach(function(pair){
+    const hh=pair[1]; if(hh==null) return;
+    let best=-1;
+    for(let i=0;i<N;i++){ if(labelHour(D.labels[i])===Math.round(hh)%24){best=i;break;} }
+    if(best<0) return;
+    const ev=el('div','ev');
+    ev.style.left=(best*wpc+wpc/2)+'%';
+    ev.innerHTML='<span class="glyph">'+pair[0]+'</span>';
+    ticks.appendChild(ev);
+  });
+  $('#legMid').textContent='+'+Math.round((N-1)/2)+'H';
+  $('#legEnd').textContent='+'+(N-1)+'H';
+  const track=$('#scrubTrack');
+  let dragging=false;
+  function setFromX(clientX){
+    const r=track.getBoundingClientRect();
+    let f=(clientX-r.left)/r.width; f=Math.max(0,Math.min(1,f));
+    setIdx(Math.round(f*(N-1)));
+  }
+  track.addEventListener('pointerdown',function(e){dragging=true;try{track.setPointerCapture(e.pointerId);}catch(x){}setFromX(e.clientX);pause();});
+  track.addEventListener('pointermove',function(e){if(dragging)setFromX(e.clientX);});
+  track.addEventListener('pointerup',function(){dragging=false;});
+  track.addEventListener('pointercancel',function(){dragging=false;});
+}
+function scrubGeom(){ return N<2?0:idx/(N-1); }
+function updateScrubVisual(){
+  const f=scrubGeom()*100;
+  $('#scrubThumb').style.left=f+'%';
+  const flag=$('#scrubFlag');
+  flag.style.left=f+'%';
+  flag.textContent=String(D.labels[idx]||'').toUpperCase();
+}
+
+/* ============================== idx wiring ============================== */
+function setIdx(i){
+  i=Math.max(0,Math.min(N-1,i));
+  if(i===idx){ updateScrubVisual(); return; }
+  idx=i;
+  syncTime();
+  updateScrubVisual();
+  updateMarkers();
+  updateList();
+  if(selPeak) updateDetailLive();
+}
+function syncTime(){
+  const lbl=String(D.labels[idx]||'').toUpperCase();
+  $('#ttBig').textContent=lbl;
+  $('#ttSm').textContent='hour '+idx;
+  $('#clockBig').textContent=lbl;
+}
+function setTab(t){
+  $('#console').dataset.tab=t;
+  $$('#mtabs button').forEach(function(b){b.classList.toggle('on',b.dataset.tab===t);});
+  if(t==='map'&&mapOK){ setTimeout(function(){map.invalidateSize();},60); }
+}
+
+/* play/pause */
+function play(){
+  if(N<2) return;
+  playing=true; $('#playBtn').textContent='❚❚';
+  clearInterval(playTimer);
+  playTimer=setInterval(function(){ setIdx(idx>=N-1?0:idx+1); }, 700/speed);
+}
+function pause(){ playing=false; $('#playBtn').textContent='▶'; clearInterval(playTimer); }
+function togglePlay(){ playing?pause():play(); }
+
+/* ============================== boot ============================== */
+function boot(){
+  if(!D || N<1){
+    document.body.innerHTML='<div style="padding:40px;font-family:monospace;color:#9aa6b0">No forecast data injected.</div>';
+    return;
+  }
+  buildHeader();
+  buildList();
+  buildScrubber();
+  syncTime();
+  updateScrubVisual();
+  initMap();
+  updateList();
+
+  $('#playBtn').addEventListener('click',togglePlay);
+  $('#prevBtn').addEventListener('click',function(){pause();setIdx(idx-1);});
+  $('#nextBtn').addEventListener('click',function(){pause();setIdx(idx+1);});
+  $('#speedBtn').addEventListener('click',function(){
+    speed=speed===1?2:1;
+    $('#speedBtn').textContent=speed+'×';
+    $('#speedBtn').classList.toggle('on',speed===2);
+    if(playing){ play(); }
+  });
+  $$('#mtabs button').forEach(function(b){b.addEventListener('click',function(){setTab(b.dataset.tab);});});
+  window.addEventListener('keydown',function(e){
+    if(e.key==='ArrowLeft'){pause();setIdx(idx-1);}
+    else if(e.key==='ArrowRight'){pause();setIdx(idx+1);}
+    else if(e.key===' '){e.preventDefault();togglePlay();}
+  });
+  if(rankedPeaks.length && !window.matchMedia('(max-width:860px)').matches){
+    selectPeak(rankedPeaks[0]);
+  }
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
+else boot();
+</script>
+</body>
+</html>
