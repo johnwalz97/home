@@ -88,6 +88,14 @@ header.bar{
 .railR{flex:0 0 var(--railR); border-left:1px solid var(--hair); background:var(--s1);}
 .railR.empty .detail-body{display:none;}
 .railR.empty .detail-empty{display:flex;}
+.railPlan{flex:0 0 300px; border-right:1px solid var(--hair); background:var(--s1); display:none;}
+.console.plan-on .railPlan{display:flex;}
+.plan-toggle{
+  font-family:var(--disp); text-transform:uppercase; letter-spacing:.1em; font-size:10px; color:var(--txt2);
+  border:1px solid var(--hair2); background:var(--s2); border-radius:4px; padding:5px 9px; display:inline-flex; align-items:center; gap:6px;
+}
+.plan-toggle:hover{border-color:var(--hair3);}
+.plan-toggle.on{color:var(--cyan); border-color:var(--cyan); background:var(--cyan-dim);}
 
 .rail-head{
   flex:0 0 auto; padding:9px 13px; border-bottom:1px solid var(--hair);
@@ -177,6 +185,92 @@ header.bar{
   border:1px dashed #5c6670; border-radius:3px; padding:1px 4px; display:inline-flex; gap:3px; align-items:center;
   background:repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(160,170,180,.07) 3px,rgba(160,170,180,.07) 6px);
 }
+
+/* ===== List filter / search bar ===== */
+.filterbar{flex:0 0 auto; border-bottom:1px solid var(--hair); background:var(--bg); padding:8px 11px; display:flex; flex-direction:column; gap:7px;}
+.search-wrap{position:relative; display:flex; align-items:center;}
+.search-wrap .ic{position:absolute; left:9px; color:var(--txt3); font-size:12px; pointer-events:none;}
+.search-wrap input{
+  width:100%; height:34px; padding:0 28px 0 26px; background:var(--s2); border:1px solid var(--hair2);
+  border-radius:5px; color:var(--txt); font-family:var(--mono); font-size:12px; outline:none;
+}
+.search-wrap input::placeholder{color:var(--txt3);}
+.search-wrap input:focus{border-color:var(--cyan-dim);}
+.search-wrap .clr{position:absolute; right:6px; width:20px; height:20px; border-radius:4px; color:var(--txt3); font-size:13px; display:none; align-items:center; justify-content:center;}
+.search-wrap.has .clr{display:flex;}
+.fchips{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+.fchip{
+  font-family:var(--disp); text-transform:uppercase; letter-spacing:.07em; font-size:9.5px; color:var(--txt2);
+  border:1px solid var(--hair2); background:var(--s2); border-radius:4px; padding:5px 8px; line-height:1; white-space:nowrap;
+}
+.fchip:hover{border-color:var(--hair3);}
+.fchip.on{color:var(--cyan); border-color:var(--cyan); background:var(--cyan-dim);}
+.fchip.sort{margin-left:auto;}
+.list-empty{padding:24px 14px; text-align:center; color:var(--txt3); font-family:var(--mono); font-size:11px;}
+
+/* ===== Flag pills (hazards) ===== */
+.flags{display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 4px;}
+.flag-pill{
+  font-family:var(--mono); font-size:10px; letter-spacing:.02em; border-radius:4px; padding:3px 7px;
+  display:inline-flex; align-items:center; gap:5px; border:1px solid;
+}
+.flag-pill.warn{color:#f2b441; border-color:#5a3520; background:#1c130b;}
+.flag-pill.warn::before{content:"⚠"; font-size:10px;}
+.flag-pill.info{color:var(--txt2); border-color:var(--hair2); background:var(--s2);}
+.flag-pill.info::before{content:"›"; color:var(--txt3);}
+
+/* ===== Day chips (detail + planner) ===== */
+.daychips{display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; -webkit-overflow-scrolling:touch;}
+.daychip{
+  flex:0 0 auto; min-width:64px; border:1px solid var(--hair2); background:var(--s2); border-radius:5px;
+  padding:6px 8px; text-align:center; cursor:pointer; position:relative;
+}
+.daychip:hover{border-color:var(--hair3);}
+.daychip.on{border-color:var(--cyan); background:var(--cyan-dim);}
+.daychip .wd{font-family:var(--disp); text-transform:uppercase; letter-spacing:.08em; font-size:9.5px; color:var(--txt3);}
+.daychip .sc{font-family:var(--mono); font-feature-settings:var(--num); font-size:18px; font-weight:600; line-height:1.1;}
+.daychip .hl{font-family:var(--mono); font-feature-settings:var(--num); font-size:9px; color:var(--txt3); margin-top:2px;}
+.bestday{
+  border:1px solid var(--hair2); background:linear-gradient(180deg,var(--s2),var(--s1)); border-radius:5px;
+  padding:8px 10px; display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:4px;
+}
+.bestday:hover{border-color:var(--hair3);}
+.bestday .bd-k{font-family:var(--disp); text-transform:uppercase; letter-spacing:.12em; font-size:9px; color:var(--txt3);}
+.bestday .bd-day{font-family:var(--disp); text-transform:uppercase; letter-spacing:.05em; font-size:15px; color:#fff;}
+.bestday .bd-win{font-family:var(--mono); font-size:10.5px; color:var(--txt2); font-feature-settings:var(--num);}
+.bestday .bd-sc{margin-left:auto; font-family:var(--mono); font-feature-settings:var(--num); font-size:22px; font-weight:600; line-height:1;}
+
+/* ===== Planner view ===== */
+.planner-scroll{flex:1 1 auto; overflow-y:auto; padding:10px 12px 26px;}
+.plan-intro{font-family:var(--ui); font-size:12px; color:var(--txt2); line-height:1.45; margin:2px 4px 12px;}
+.plan-intro b{color:var(--txt);}
+.plan-day{border:1px solid var(--hair2); border-radius:6px; margin-bottom:10px; overflow:hidden; background:var(--bg);}
+.plan-day-head{
+  display:flex; align-items:center; gap:10px; padding:9px 11px; cursor:pointer; background:var(--s1); border-bottom:1px solid transparent;
+}
+.plan-day.open .plan-day-head{border-bottom-color:var(--hair2);}
+.plan-day-head .pd-wd{font-family:var(--disp); text-transform:uppercase; letter-spacing:.08em; font-size:14px; color:#fff;}
+.plan-day-head .pd-lb{font-family:var(--mono); font-size:10px; color:var(--txt3); font-feature-settings:var(--num);}
+.plan-day-head .pd-best{margin-left:auto; display:flex; align-items:center; gap:8px; min-width:0;}
+.plan-day-head .pd-bestnm{font-family:var(--disp); text-transform:uppercase; letter-spacing:.04em; font-size:10px; color:var(--txt2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:96px;}
+.plan-day-head .pd-bestsc{font-family:var(--mono); font-feature-settings:var(--num); font-size:18px; font-weight:600;}
+.plan-day-head .pd-caret{color:var(--txt3); font-size:11px; transition:transform .15s; flex:0 0 auto;}
+.plan-day.open .pd-caret{transform:rotate(90deg);}
+.plan-day-body{display:none; padding:4px 0;}
+.plan-day.open .plan-day-body{display:block;}
+.plan-sun{font-family:var(--mono); font-size:9.5px; color:var(--txt3); padding:5px 11px 3px; font-feature-settings:var(--num); letter-spacing:.03em; display:flex; gap:12px;}
+.prow{display:grid; grid-template-columns:20px 1fr auto; gap:9px; align-items:center; padding:6px 11px; cursor:pointer; border-top:1px solid var(--hair);}
+.prow:hover{background:var(--s1);}
+.prow .pr-rank{font-family:var(--mono); font-size:11px; color:var(--txt3); text-align:center; font-feature-settings:var(--num);}
+.prow .pr-nm{font-family:var(--disp); text-transform:uppercase; letter-spacing:.04em; font-size:12px; color:var(--txt); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.prow .pr-sub{font-family:var(--mono); font-size:9.5px; color:var(--txt3); font-feature-settings:var(--num); margin-top:1px;}
+.prow .pr-sc{font-family:var(--mono); font-feature-settings:var(--num); font-size:16px; font-weight:600; text-align:right; line-height:1;}
+.prow .pr-bar{height:3px; border-radius:2px; background:var(--hair); position:relative; overflow:hidden; margin-top:5px;}
+.prow .pr-bar > i{position:absolute; left:0; top:0; bottom:0; border-radius:2px;}
+
+/* day-boundary scrubber ticks */
+.scrub-ticks .day{position:absolute; top:0; bottom:0; width:1px; background:rgba(54,214,231,.35);}
+.scrub-ticks .day .dl{position:absolute; top:1px; left:3px; font-family:var(--disp); text-transform:uppercase; letter-spacing:.06em; font-size:8px; color:var(--cyan); opacity:.85;}
 
 /* ===== Detail ===== */
 .detail-empty{display:none; flex:1; align-items:center; justify-content:center; flex-direction:column; gap:10px; color:var(--txt3); padding:30px; text-align:center;}
@@ -306,14 +400,24 @@ footer.dock{
   }
   .mtabs button.on{color:var(--cyan); border-bottom-color:var(--cyan); background:var(--s2);}
   .console{flex-direction:column;}
-  .railL,.railR{flex:1 1 auto; border:none; width:100%; min-height:0;}
+  .plan-toggle{display:none;}
+  .console.plan-on .railPlan{display:none;}
+  .console[data-tab="plan"] .railPlan{display:flex!important;}
+  .railL,.railR,.railPlan{flex:1 1 auto; border:none; width:100%; min-height:0;}
   .center{flex:1 1 auto; min-height:42vh;}
   .console[data-tab="map"] .railL,
+  .console[data-tab="map"] .railPlan,
   .console[data-tab="map"] .railR{display:none;}
   .console[data-tab="list"] .center,
+  .console[data-tab="list"] .railPlan,
   .console[data-tab="list"] .railR{display:none;}
+  .console[data-tab="plan"] .center,
+  .console[data-tab="plan"] .railL,
+  .console[data-tab="plan"] .railR{display:none;}
   .console[data-tab="detail"] .center,
-  .console[data-tab="detail"] .railL{display:none;}
+  .console[data-tab="detail"] .railL,
+  .console[data-tab="detail"] .railPlan{display:none;}
+  .fchip{padding:7px 9px; font-size:10px;}
   footer.dock{position:sticky; bottom:0; z-index:20;}
   .time-tag{min-width:96px;}
   .tbtn,.speed{width:40px; height:40px;}
@@ -337,20 +441,43 @@ footer.dock{
       <h1>White Mountains Summit Forecast</h1>
       <span class="sub" id="genTag">UPD —</span>
     </div>
+    <button class="plan-toggle" id="planToggle" title="Day planner">◳ Plan</button>
     <div class="chips" id="chips"></div>
   </header>
 
   <div class="mtabs" id="mtabs">
     <button data-tab="map" class="on">Map</button>
+    <button data-tab="plan">Plan</button>
     <button data-tab="list">List</button>
     <button data-tab="detail">Detail</button>
   </div>
 
   <div class="console" id="console" data-tab="map">
+    <aside class="rail railPlan" id="railPlan">
+      <div class="rail-head">
+        <span class="ttl">Day Planner</span>
+        <span class="ct" id="planCount"></span>
+      </div>
+      <div class="planner-scroll grid-bg" id="planner"></div>
+    </aside>
+
     <aside class="rail railL">
       <div class="rail-head">
         <span class="ttl">Ranked Summits</span>
         <span class="ct" id="listCount"></span>
+      </div>
+      <div class="filterbar">
+        <div class="search-wrap" id="searchWrap">
+          <span class="ic">⌕</span>
+          <input id="searchInput" type="search" inputmode="search" autocomplete="off" placeholder="Search peaks…" />
+          <button class="clr" id="searchClr" title="Clear">×</button>
+        </div>
+        <div class="fchips" id="fchips">
+          <button class="fchip" data-filter="clear">Clear views</button>
+          <button class="fchip" data-filter="calm">Calm</button>
+          <button class="fchip" data-filter="treeline">Below treeline</button>
+          <button class="fchip sort" id="sortBtn" data-sort="score">Sort · Score</button>
+        </div>
       </div>
       <div class="rail-scroll grid-bg" id="list"></div>
     </aside>
@@ -401,7 +528,7 @@ footer.dock{
           <div class="scrub-thumb" id="scrubThumb" style="left:0"></div>
         </div>
         <div class="scrub-legend">
-          <span>NOW</span><span id="legMid">+18H</span><span id="legEnd">+36H</span>
+          <span id="legStart">NOW</span><span id="legMid"></span><span id="legEnd"></span>
         </div>
       </div>
     </div>
@@ -492,6 +619,72 @@ function isNightHour(h){
   const sr=sunriseH==null?6:sunriseH, ss=sunsetH==null?20:sunsetH;
   return h<sr || h>=ss;
 }
+function labelWeekday(lbl){
+  // label like "sun 1pm" -> "sun"
+  const m=String(lbl||'').match(/^([a-z]{3})/i);
+  return m?m[1].toLowerCase():null;
+}
+
+/* ============================== Multi-day model ============================== */
+// Build day boundaries from the hourly labels: a new day starts when the weekday
+// token changes OR the hour wraps past local midnight. dayOfIdx[i] = day index.
+const dayBounds=[];      // {start, end, weekday, key} per day, indices into D.labels
+const dayOfIdx=[];       // length N
+(function buildDayModel(){
+  if(N<1) return;
+  let cur={start:0,weekday:labelWeekday(D.labels[0]),prevH:labelHour(D.labels[0])};
+  for(let i=0;i<N;i++){
+    const wd=labelWeekday(D.labels[i]);
+    const h=labelHour(D.labels[i]);
+    const wrapped = (cur.prevH!=null && h!=null && h<cur.prevH && i>cur.start);
+    const changed = (wd && cur.weekday && wd!==cur.weekday);
+    if(i>0 && (changed || (wrapped && !changed))){
+      dayBounds.push({start:cur.start,end:i-1,weekday:cur.weekday});
+      cur={start:i,weekday:wd,prevH:h};
+    }
+    cur.weekday=cur.weekday||wd; cur.prevH=h;
+    dayOfIdx[i]=dayBounds.length;
+  }
+  dayBounds.push({start:cur.start,end:N-1,weekday:cur.weekday});
+})();
+function dayIndexForLabel(dayLabel){
+  // match planner/day label "sun 6/28" -> weekday token "sun" -> first dayBounds with that weekday
+  const wd=labelWeekday(dayLabel);
+  for(let d=0;d<dayBounds.length;d++){ if(dayBounds[d].weekday===wd) return d; }
+  return -1;
+}
+function noonIdxOfDay(d){
+  const b=dayBounds[d]; if(!b) return 0;
+  let best=b.start, bestDiff=99;
+  for(let i=b.start;i<=b.end;i++){
+    const h=labelHour(D.labels[i]); if(h==null) continue;
+    const diff=Math.abs(h-12); if(diff<bestDiff){bestDiff=diff;best=i;}
+  }
+  return best;
+}
+function winStartHour(win){
+  // window strings look like "around 1pm" or "10am–3pm"; grab first clock token
+  if(!win) return null;
+  return parseClock(win);
+}
+function idxForDayWindow(d, win){
+  const b=dayBounds[d]; if(!b) return 0;
+  const wh=winStartHour(win);
+  if(wh==null) return noonIdxOfDay(d);
+  let best=b.start, bestDiff=99;
+  for(let i=b.start;i<=b.end;i++){
+    const h=labelHour(D.labels[i]); if(h==null) continue;
+    const diff=Math.abs(h-Math.round(wh)); if(diff<bestDiff){bestDiff=diff;best=i;}
+  }
+  return best;
+}
+// jump scrubber to a day (by label) at its best window or noon
+function jumpToDay(dayLabel, win){
+  const d=dayIndexForLabel(dayLabel);
+  if(d<0) return;
+  pause();
+  setIdx(idxForDayWindow(d, win));
+}
 
 /* ============================== Header ============================== */
 function buildHeader(){
@@ -558,15 +751,37 @@ function initMap(){
     showFallback();
   }
 }
+let barbLayer=null;
 function buildMarkers(){
+  barbLayer=L.layerGroup().addTo(map);
   peaks.forEach(function(p){
     const m=L.circleMarker([p.lat,p.lon],{radius:8,weight:1,color:'#0a0c0e',fillColor:'#5a646e',fillOpacity:1});
     m.on('click',function(){selectPeak(p);});
     m.bindTooltip(p.name,{direction:'top',className:'mk-tip',offset:[0,-6]});
     m.addTo(map);
-    markers[p.name]={marker:m};
+    markers[p.name]={marker:m,barb:null};
   });
+  map.on('zoomend moveend',drawBarbs);
   updateMarkers();
+}
+// Wind barbs: a needle pointing FROM the wind source (wdir), length hints speed.
+function drawBarbs(){
+  if(!mapOK||!barbLayer) return;
+  barbLayer.clearLayers();
+  peaks.forEach(function(p){
+    const h=p.hours&&p.hours[idx]; if(!h) return;
+    const dir=h.wdir, spd=h.wind;
+    if(dir==null) return;
+    const pt=map.latLngToContainerPoint([p.lat,p.lon]);
+    const len=10+Math.min(18,(spd||0)*0.5);   // 10..28 px
+    const rad=(dir-90)*Math.PI/180;           // 0deg = from north
+    // wind FROM dir: needle extends toward the direction it blows from
+    const ex=pt.x+Math.cos(rad+Math.PI)*len, ey=pt.y+Math.sin(rad+Math.PI)*len;
+    const a=map.containerPointToLatLng([pt.x+Math.cos(rad+Math.PI)*9, pt.y+Math.sin(rad+Math.PI)*9]);
+    const b=map.containerPointToLatLng([ex,ey]);
+    const strong=(spd||0)>=30;
+    L.polyline([a,b],{color:strong?'#f2b441':'#9aa6b0',weight:strong?2:1.4,opacity:.9,interactive:false}).addTo(barbLayer);
+  });
 }
 function updateMarkers(){
   if(!mapOK) return;
@@ -581,6 +796,7 @@ function updateMarkers(){
       radius: (selPeak&&selPeak.name===p.name)?9:8
     });
   });
+  drawBarbs();
   updateReticle();
 }
 function updateReticle(){
@@ -594,10 +810,11 @@ function updateReticle(){
 }
 
 /* ============================== Ranked list ============================== */
+const listFilters={search:'',clear:false,calm:false,treeline:false,sort:'score'};
+const rowByName={};
 function buildList(){
   const list=$('#list'); list.innerHTML='';
-  $('#listCount').textContent=rankedPeaks.length+' PK';
-  rankedPeaks.forEach(function(p){
+  peaks.forEach(function(p){
     const row=el('div','list-row');
     row.dataset.name=p.name;
     row.innerHTML=
@@ -609,13 +826,48 @@ function buildList(){
       '</div>'+
       '<div class="lr-right"><span class="dot"></span><span class="cloud-slot"></span></div>';
     row.addEventListener('click',function(){selectPeak(p);});
+    rowByName[p.name]=row;
     list.appendChild(row);
   });
-  updateList();
+  refreshList();
 }
-function updateList(){
-  $$('#list .list-row').forEach(function(row){
-    const p=peaks.find(function(x){return x.name===row.dataset.name;}); if(!p) return;
+function passesFilters(p){
+  if(listFilters.search){
+    if(p.name.toLowerCase().indexOf(listFilters.search)<0) return false;
+  }
+  if(listFilters.clear && !(p.day_score!=null && p.day_score>=60)) return false;
+  if(listFilters.treeline && !(p.elev_ft!=null && p.elev_ft<4000)) return false;
+  if(listFilters.calm){
+    const h=p.hours&&p.hours[idx];
+    const w=h?h.wind:null;
+    if(!(w!=null && w<15)) return false;
+  }
+  return true;
+}
+function sortedPeaks(){
+  const arr=peaks.slice();
+  if(listFilters.sort==='elev'){
+    arr.sort(function(a,b){return (b.elev_ft||0)-(a.elev_ft||0);});
+  } else {
+    arr.sort(function(a,b){return (b.day_score==null?-1:b.day_score)-(a.day_score==null?-1:a.day_score);});
+  }
+  return arr;
+}
+// refreshList: reorder (DOM), apply filter visibility, recolor live values
+function refreshList(){
+  const list=$('#list'); if(!list) return;
+  const order=sortedPeaks();
+  let shown=0;
+  order.forEach(function(p){
+    const row=rowByName[p.name]; if(!row) return;
+    list.appendChild(row); // reorder
+    const vis=passesFilters(p);
+    row.style.display=vis?'':'none';
+    if(vis) shown++;
+  });
+  // live values for visible rows
+  order.forEach(function(p){
+    const row=rowByName[p.name]; if(!row||row.style.display==='none') return;
     const s=score(p,idx), col=rampColor(s), cloud=isCloud(p,idx);
     const sv=row.querySelector('.sv'); sv.textContent = s==null?'––':s; sv.style.color=col;
     row.querySelector('.dot').style.background=col;
@@ -623,6 +875,75 @@ function updateList(){
     bar.style.width=(s==null?0:s)+'%'; bar.style.background=col;
     row.querySelector('.cloud-slot').innerHTML = cloud?'<span class="cloud-pill">≈ IN CLOUD</span>':'';
     row.classList.toggle('sel', !!selPeak&&selPeak.name===p.name);
+  });
+  // empty-state
+  let empty=$('#listEmpty');
+  if(shown===0){
+    if(!empty){ empty=el('div','list-empty'); empty.id='listEmpty'; empty.textContent='No peaks match.'; list.appendChild(empty); }
+    empty.style.display='';
+  } else if(empty){ empty.style.display='none'; }
+  $('#listCount').textContent=shown+(shown===peaks.length?'':' / '+peaks.length)+' PK';
+}
+// keep the old name as an alias for live updates on idx change
+function updateList(){ refreshList(); }
+
+/* ============================== Planner ============================== */
+let plannerOpenDay = 0;
+function buildPlanner(){
+  const wrap=$('#planner'); if(!wrap) return;
+  const days=(D&&D.planner)||[];
+  $('#planCount').textContent = days.length+' DAYS';
+  if(!days.length){ wrap.innerHTML='<div class="list-empty">No multi-day planner data.</div>'; return; }
+  let html='<div class="plan-intro"><b>Which day should you go?</b> Each day is ranked by its best summits. Tap a peak to open its detail and jump the timeline to that day.</div>';
+  days.forEach(function(day,di){
+    const top=day.top||[];
+    const best=top[0];
+    const bestCol=best?rampColor(best.score):'#5a646e';
+    html+='<div class="plan-day'+(di===plannerOpenDay?' open':'')+'" data-day="'+di+'">'+
+      '<div class="plan-day-head" data-day="'+di+'">'+
+        '<span class="pd-wd">'+String(day.weekday||'').toUpperCase()+'</span>'+
+        '<span class="pd-lb">'+String(day.label||'').replace(/^[a-z]{3}\s*/i,'')+'</span>'+
+        '<span class="pd-best">'+
+          (best?'<span class="pd-bestnm">'+best.name+'</span><span class="pd-bestsc" style="color:'+bestCol+'">'+best.score+'</span>':'<span class="pd-bestnm">—</span>')+
+        '</span>'+
+        '<span class="pd-caret">▶</span>'+
+      '</div>'+
+      '<div class="plan-day-body">'+
+        ((day.sunrise||day.sunset)?'<div class="plan-sun"><span>☀ '+(day.sunrise||'—')+'</span><span>☾ '+(day.sunset||'—')+'</span></div>':'');
+    top.forEach(function(t,ri){
+      const col=rampColor(t.score);
+      html+='<div class="prow" data-day="'+di+'" data-name="'+encodeURIComponent(t.name)+'" data-win="'+encodeURIComponent(t.window||'')+'">'+
+        '<span class="pr-rank">'+(ri+1)+'</span>'+
+        '<span style="min-width:0">'+
+          '<span class="pr-nm">'+t.name+'</span>'+
+          '<div class="pr-sub">'+((t.elev_ft||0).toLocaleString())+' ft'+(t.window?' · '+t.window:'')+'</div>'+
+          '<div class="pr-bar"><i style="width:'+t.score+'%;background:'+col+'"></i></div>'+
+        '</span>'+
+        '<span class="pr-sc" style="color:'+col+'">'+t.score+'</span>'+
+      '</div>';
+    });
+    html+='</div></div>';
+  });
+  wrap.innerHTML=html;
+  // day header toggles
+  $$('#planner .plan-day-head').forEach(function(hd){
+    hd.addEventListener('click',function(){
+      const dy=hd.parentNode;
+      dy.classList.toggle('open');
+    });
+  });
+  // peak rows select + jump
+  $$('#planner .prow').forEach(function(row){
+    row.addEventListener('click',function(e){
+      e.stopPropagation();
+      const nm=decodeURIComponent(row.dataset.name);
+      const win=decodeURIComponent(row.dataset.win||'');
+      const dayLbl=(days[+row.dataset.day]||{}).label;
+      const p=peaks.find(function(x){return x.name===nm;});
+      jumpToDay(dayLbl, win);
+      if(p) selectPeak(p);
+      else if(window.matchMedia('(max-width:860px)').matches) setTab('detail');
+    });
   });
 }
 
@@ -659,6 +980,7 @@ function renderDetail(){
       '</div>'+
     '</div>'+
     '<div class="detail-scroll">'+
+      (p.flags&&p.flags.length?'<div class="flags">'+p.flags.map(function(f){return '<span class="flag-pill '+(f.l==='warn'?'warn':'info')+'">'+f.t+'</span>';}).join('')+'</div>':'')+
       '<div class="gauge-wrap">'+
         '<div class="gauge" id="gauge"></div>'+
         '<div class="gauge-side">'+
@@ -668,6 +990,8 @@ function renderDetail(){
           '<div class="now-vals" id="nowVals"></div>'+
         '</div>'+
       '</div>'+
+      (p.best_day?'<div class="bestday" id="bestDayBtn"><div><div class="bd-k">Best Day</div><div class="bd-day">'+String(p.best_day.label||'').toUpperCase()+'</div><div class="bd-win">'+(p.best_day.window||'all day')+'</div></div><div class="bd-sc" style="color:'+rampColor(p.best_day.score)+'">'+p.best_day.score+'</div></div>':'')+
+      ((p.days&&p.days.length)?'<div class="section-t">By Day</div><div class="daychips" id="dayChips"></div>':'')+
       '<div class="section-t">Outlook</div>'+
       '<div class="summary" id="summary">'+(p.summary||'No summary available for this peak.')+'</div>'+
       '<div class="section-t">Trailhead</div>'+
@@ -675,17 +999,47 @@ function renderDetail(){
         '<span class="k">Access</span><span class="v">'+(p.trailhead||'—')+'</span>'+
         '<span class="k">Best Window</span><span class="v">'+(p.best_window||'—')+'</span>'+
       '</div>'+
-      '<div class="section-t">36-Hour Score</div>'+
+      '<div class="section-t">'+dayBounds.length+'-Day Score</div>'+
       '<div class="spark-wrap">'+
         '<svg id="spark" viewBox="0 0 360 74" preserveAspectRatio="none"></svg>'+
-        '<div class="spark-legend"><span>NOW</span><span id="sparkBest"></span><span>+'+(N-1)+'H</span></div>'+
+        '<div class="spark-legend"><span id="sparkStart">NOW</span><span id="sparkBest"></span><span id="sparkEnd"></span></div>'+
       '</div>'+
       '<div class="section-t">Hourly</div>'+
       '<div class="tbl-wrap"><div class="tbl-scroll"><table class="hours" id="htbl"></table></div></div>'+
     '</div>';
+  buildDayChips();
+  const bd=$('#bestDayBtn');
+  if(bd && p.best_day){ bd.addEventListener('click',function(){ jumpToDay(p.best_day.label, p.best_day.window); }); }
   drawSpark();
   drawTable();
   updateDetailLive();
+}
+function buildDayChips(){
+  const wrap=$('#dayChips'); if(!wrap||!selPeak||!selPeak.days) return;
+  wrap.innerHTML=selPeak.days.map(function(d){
+    const col=rampColor(d.score);
+    const hl=(d.hi==null?'—':d.hi+'°')+'/'+(d.lo==null?'—':d.lo+'°');
+    return '<div class="daychip" data-label="'+encodeURIComponent(d.label)+'" data-win="'+encodeURIComponent(d.best_window||'')+'">'+
+      '<div class="wd">'+String(d.weekday||'').toUpperCase()+'</div>'+
+      '<div class="sc" style="color:'+col+'">'+d.score+'</div>'+
+      '<div class="hl">'+hl+'</div>'+
+    '</div>';
+  }).join('');
+  $$('#dayChips .daychip').forEach(function(ch){
+    ch.addEventListener('click',function(){
+      jumpToDay(decodeURIComponent(ch.dataset.label), decodeURIComponent(ch.dataset.win||''));
+    });
+  });
+  highlightDayChip();
+}
+function highlightDayChip(){
+  const wrap=$('#dayChips'); if(!wrap) return;
+  const curDay=dayOfIdx[idx];
+  const curWd=(dayBounds[curDay]||{}).weekday;
+  $$('#dayChips .daychip').forEach(function(ch){
+    const wd=labelWeekday(decodeURIComponent(ch.dataset.label));
+    ch.classList.toggle('on', wd===curWd);
+  });
 }
 function drawGauge(){
   const g=$('#gauge'); if(!g) return;
@@ -743,8 +1097,10 @@ function drawSpark(){
   }
   if(bestStart>=0){
     bestU='<line x1="'+X(bestStart).toFixed(1)+'" y1="'+(H-1.5)+'" x2="'+X(bestEnd).toFixed(1)+'" y2="'+(H-1.5)+'" stroke="#7FCB4F" stroke-width="2.5"/>';
-    $('#sparkBest').textContent='BEST '+String(D.labels[bestStart]||'').toUpperCase();
+    if($('#sparkBest')) $('#sparkBest').textContent='BEST '+String(D.labels[bestStart]||'').toUpperCase();
   } else if($('#sparkBest')){ $('#sparkBest').textContent=''; }
+  if($('#sparkStart')) $('#sparkStart').textContent=String((dayBounds[0]||{}).weekday||'NOW').toUpperCase();
+  if($('#sparkEnd')) $('#sparkEnd').textContent=String((dayBounds[dayBounds.length-1]||{}).weekday||'').toUpperCase();
   const nowX=X(idx);
   svg.innerHTML=bands+bestU+segs+
     '<line id="sparkNow" x1="'+nowX.toFixed(1)+'" y1="0" x2="'+nowX.toFixed(1)+'" y2="'+H+'" stroke="#36D6E7" stroke-width="1.4"/>'+
@@ -794,6 +1150,7 @@ function updateDetailLive(){
   drawGauge();
   drawSpark();
   highlightTableRow();
+  highlightDayChip();
 }
 
 /* ============================== Scrubber ============================== */
@@ -818,26 +1175,46 @@ function buildScrubber(){
       ticks.appendChild(ng);
     }
   }
+  // hour gridlines: minor every hour, major at 00/06/12/18 (skip 00 since day tick covers it)
   for(let i=0;i<N;i++){
     const h=labelHour(D.labels[i]);
-    const maj = h!=null && (h%6===0);
+    const maj = h!=null && (h%6===0) && h!==0;
     const tk=el('div','tk'+(maj?' maj':''));
     tk.style.left=(i*wpc+wpc/2)+'%';
     if(maj){ tk.innerHTML='<span class="lbl">'+String(h).padStart(2,'0')+'</span>'; }
     ticks.appendChild(tk);
   }
-  [['☀',sunriseH],['☾',sunsetH]].forEach(function(pair){
-    const hh=pair[1]; if(hh==null) return;
-    let best=-1;
-    for(let i=0;i<N;i++){ if(labelHour(D.labels[i])===Math.round(hh)%24){best=i;break;} }
-    if(best<0) return;
-    const ev=el('div','ev');
-    ev.style.left=(best*wpc+wpc/2)+'%';
-    ev.innerHTML='<span class="glyph">'+pair[0]+'</span>';
-    ticks.appendChild(ev);
+  // sunrise/sunset glyphs per day (matched by nearest hour within each day band)
+  if(sunriseH!=null||sunsetH!=null){
+    dayBounds.forEach(function(b){
+      [['☀',sunriseH],['☾',sunsetH]].forEach(function(pair){
+        const hh=pair[1]; if(hh==null) return;
+        let best=-1,bd=99;
+        for(let i=b.start;i<=b.end;i++){ const h=labelHour(D.labels[i]); if(h==null)continue; const diff=Math.abs(h-Math.round(hh)); if(diff<bd){bd=diff;best=i;} }
+        if(best<0||bd>1) return;
+        const ev=el('div','ev'); ev.style.left=(best*wpc+wpc/2)+'%';
+        ev.innerHTML='<span class="glyph">'+pair[0]+'</span>';
+        ticks.appendChild(ev);
+      });
+    });
+  }
+  // DAY-BOUNDARY ticks labeled by weekday
+  dayBounds.forEach(function(b,d){
+    if(d===0) return; // no divider before the first day
+    const dv=el('div','day'); dv.style.left=(b.start*wpc)+'%';
+    dv.innerHTML='<span class="dl">'+String(b.weekday||'').toUpperCase()+'</span>';
+    ticks.appendChild(dv);
   });
-  $('#legMid').textContent='+'+Math.round((N-1)/2)+'H';
-  $('#legEnd').textContent='+'+(N-1)+'H';
+  // first-day label sits just inside the left edge
+  if(dayBounds[0]){
+    const dv=el('div','day'); dv.style.left='0%'; dv.style.background='transparent';
+    dv.innerHTML='<span class="dl">'+String(dayBounds[0].weekday||'').toUpperCase()+'</span>';
+    ticks.appendChild(dv);
+  }
+  // legend: NOW · n days · end weekday
+  const lm=$('#legMid'), le=$('#legEnd');
+  if(lm) lm.textContent=dayBounds.length+' DAYS';
+  if(le) le.textContent=String((dayBounds[dayBounds.length-1]||{}).weekday||'').toUpperCase();
   const track=$('#scrubTrack');
   let dragging=false;
   function setFromX(clientX){
@@ -900,11 +1277,47 @@ function boot(){
   }
   buildHeader();
   buildList();
+  buildPlanner();
   buildScrubber();
   syncTime();
   updateScrubVisual();
   initMap();
-  updateList();
+  refreshList();
+
+  // ----- list filters / search / sort -----
+  const si=$('#searchInput'), sw=$('#searchWrap');
+  if(si){
+    si.addEventListener('input',function(){
+      listFilters.search=si.value.trim().toLowerCase();
+      sw.classList.toggle('has', !!si.value);
+      refreshList();
+    });
+    $('#searchClr').addEventListener('click',function(){ si.value=''; listFilters.search=''; sw.classList.remove('has'); si.focus(); refreshList(); });
+  }
+  $$('#fchips .fchip[data-filter]').forEach(function(ch){
+    ch.addEventListener('click',function(){
+      const f=ch.dataset.filter;
+      listFilters[f]=!listFilters[f];
+      ch.classList.toggle('on',listFilters[f]);
+      refreshList();
+    });
+  });
+  const sb=$('#sortBtn');
+  if(sb){ sb.addEventListener('click',function(){
+    listFilters.sort=listFilters.sort==='score'?'elev':'score';
+    sb.textContent=listFilters.sort==='score'?'Sort · Score':'Sort · Elev';
+    sb.classList.toggle('on',listFilters.sort==='elev');
+    refreshList();
+  }); }
+
+  // ----- planner toggle (desktop) -----
+  const pt=$('#planToggle');
+  if(pt){ pt.addEventListener('click',function(){
+    const con=$('#console');
+    const on=con.classList.toggle('plan-on');
+    pt.classList.toggle('on',on);
+    if(on && mapOK) setTimeout(function(){map.invalidateSize();},60);
+  }); }
 
   $('#playBtn').addEventListener('click',togglePlay);
   $('#prevBtn').addEventListener('click',function(){pause();setIdx(idx-1);});
