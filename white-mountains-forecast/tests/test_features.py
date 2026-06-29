@@ -66,6 +66,35 @@ def test_bias_decays_to_zero():
     assert abs(e_later.bias_f) < 0.1                    # ~zero at the decay horizon
 
 
+def test_ascent_profile_enters_cloud():
+    from wxmtn.model import ascent_profile
+    when = datetime(2026, 6, 28, 12, tzinfo=timezone.utc)
+    valley = _anchor_fc("low", 200, 20.0, when)
+    summit = _anchor_fc("Summit", 1900, 8.0, when)  # cold/cloudy high
+    summit.hourly["dewpoint_c"] = {when: 7.5}
+    valley.hourly["dewpoint_c"] = {when: 19.5}       # tiny spread -> low cloud base
+    all_fc = {"low": valley, "Summit": summit}
+    prof = ascent_profile(all_fc, summit, when, start_elev_m=300)
+    assert prof and len(prof["bands"]) == 7
+    assert prof["bands"][0]["elev_ft"] < prof["bands"][-1]["elev_ft"]  # trailhead -> summit
+    assert any(b["cloud"] for b in prof["bands"])    # high bands are in cloud
+    assert prof["enters_cloud_ft"] is not None
+
+
+def test_ai_briefing_none_without_key(monkeypatch=None):
+    import os
+    from wxmtn import ai
+    os.environ.pop("ANTHROPIC_API_KEY", None)
+    assert ai.build_briefing({"peaks": []}) is None
+
+
+def _anchor_fc(name, elev, temp_c, when):
+    loc = Location(name, 44.0, -71.0, elev)
+    fc = LocationForecast(loc=loc, grid_elevation_m=elev, office="GYX", grid_x=0, grid_y=0)
+    fc.hourly = {"temp_c": {when: temp_c}}
+    return fc
+
+
 def test_webreport_renders_payload():
     from wxmtn import webreport
     payload = {"generated": "x", "labels": ["sun 12pm"], "sunrise": "5am",

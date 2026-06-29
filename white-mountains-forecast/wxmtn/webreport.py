@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from .fetch import LocationForecast
-from .model import estimate, summit_temp_bias_c
+from .model import ascent_profile, estimate, summit_temp_bias_c
 from .astro import sun_times
 from .alerts import active as active_alerts
 from .alerts import mountain_relevant
@@ -110,6 +110,12 @@ def _peak_payload(all_fc, summit, times, hourly, bias_c, now, daylight):
     days = _aggregate_days(h_ests, summit.loc)
     best_day = max(days, key=lambda x: x["score"]) if days else None
     th = for_peak(summit.loc.name)
+    # "Weather as you climb" — a band-by-band ascent profile at today's best hour
+    start_m = th.start_elev_m if th else max(300.0, summit.loc.elevation_m - 900)
+    asc_when = win.start if win else now
+    ascent = ascent_profile(all_fc, summit, asc_when, start_m)
+    if ascent:
+        ascent["at"] = asc_when.astimezone(EASTERN).strftime("%a %-I%p").lower()
     return {
         "name": summit.loc.name,
         "lat": summit.loc.lat,
@@ -127,6 +133,7 @@ def _peak_payload(all_fc, summit, times, hourly, bias_c, now, daylight):
         "trailhead": (f"{th.route} · {th.round_trip_mi:.1f} mi · {th.difficulty}"
                       if th else None),
         "difficulty": th.difficulty if th else None,
+        "ascent": ascent,
         "hours": [
             {
                 "t": _hour_label(e.when),

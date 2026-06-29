@@ -48,6 +48,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="append the Mount Washington Obs higher-summits text")
     ap.add_argument("--html", metavar="PATH",
                     help="write a standalone interactive map report to PATH")
+    ap.add_argument("--no-ai", action="store_true",
+                    help="skip the AI briefing even if ANTHROPIC_API_KEY is set")
     ap.add_argument("--backtest", action="store_true",
                     help="log this hour vs KMWN and print the scoreboard")
     args = ap.parse_args(argv)
@@ -89,6 +91,15 @@ def main(argv: list[str] | None = None) -> int:
         from . import webreport
         spot_fc = fetch.fetch_all(peaks.SPOTS)
         payload = webreport.build_payload(all_fc, summit_fc, times, spot_fc=spot_fc)
+        if not args.no_ai:
+            from . import ai
+            brief = ai.build_briefing(payload)
+            if brief:
+                payload["ai"] = brief
+                print(f"AI briefing added ({brief.get('model','?')}).", file=sys.stderr)
+            else:
+                print("AI briefing skipped (no ANTHROPIC_API_KEY / SDK / call failed).",
+                      file=sys.stderr)
         with open(args.html, "w") as fh:
             fh.write(webreport.render_html(payload))
         print(f"Wrote interactive report: {args.html} "

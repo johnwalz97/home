@@ -27,10 +27,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Build interactive report (stdlib only, no deps)
+      # Only needed for the optional AI briefing; the forecast itself is stdlib.
+      - name: Install AI SDK (optional)
+        run: pip install --quiet anthropic
+
+      - name: Build interactive report
         working-directory: white-mountains-forecast
         env:
           WXMTN_CONTACT: "github.com/${{ github.repository }} daily build"
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           mkdir -p "$GITHUB_WORKSPACE/_site"
           python -m wxmtn --hours 120 --step 1 --html "$GITHUB_WORKSPACE/_site/index.html"

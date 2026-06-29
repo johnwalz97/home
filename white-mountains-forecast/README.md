@@ -74,6 +74,26 @@ python -m wxmtn --json > forecast.json
 python -m wxmtn --hours 36 --step 1 --html today.html
 ```
 
+## AI briefing (optional)
+
+If an `ANTHROPIC_API_KEY` is available at build time, the report gains an **AI
+Briefing** panel: each morning the full forecast dataset is sent to Claude
+(`claude-opus-4-8`), which returns an expert read on top of the deterministic
+numbers — a headline, a narrative, a single best bet, scenario-based plans,
+**judgment calls** (where it agrees/disagrees with the raw "go score"), and
+safety hazards. The deterministic forecast stays the source of truth; this is
+the advisor layer. It degrades to nothing without the key (`wxmtn/ai.py` returns
+`None`), so local builds and tests never need it. Add the key as a repo secret
+named `ANTHROPIC_API_KEY` to enable it in the daily build; pass `--no-ai` to skip.
+
+## Ascent profile ("weather as you climb")
+
+The per-peak detail shows a band-by-band **ascent profile** from the trailhead to
+the true summit at the day's best hour — temperature by elevation and, crucially,
+**where the climb enters the clouds** (the cloud-base crossing), which a single
+valley point forecast can't tell you. CLI: this data rides in the `--html`
+payload; the model function is `wxmtn.model.ascent_profile`.
+
 ## Live daily report (GitHub Pages)
 
 `.github/workflows/daily-forecast.yml` rebuilds the interactive report every

@@ -122,6 +122,51 @@ def _lapse_temp(
     return a + b * summit.loc.elevation_m, b * 1000.0
 
 
+def _lapse_fit(all_fc: dict[str, LocationForecast], when: datetime):
+    """Return the clamped lapse line (a, b) so temp(z) = a + b*z (°C, metres)."""
+    pts = [(fc.grid_elevation_m, fc.value("temp_c", when))
+           for fc in all_fc.values() if fc.value("temp_c", when) is not None]
+    fit = _fit_line([(z, t) for z, t in pts if t is not None])
+    if fit is None:
+        return None
+    a, b = fit
+    return a, max(min(b, 0.0), -0.012)
+
+
+def ascent_profile(all_fc, summit, when, start_elev_m, bands: int = 6) -> dict | None:
+    """Weather band-by-band from a trailhead up to the true summit at one hour.
+
+    Uses the lapse fit for temperature at each elevation and the cloud-base model
+    to flag where the climb enters the clouds -- the thing a valley point forecast
+    (AllTrails-style) can't tell you.
+    """
+    fit = _lapse_fit(all_fc, when)
+    if fit is None:
+        return None
+    a, b = fit
+    top = summit.loc.elevation_m
+    if top <= start_elev_m:
+        return None
+    cloud_base = _cloud_base_m(all_fc, when)
+    rows = []
+    enters_ft = None
+    for i in range(bands + 1):
+        z = start_elev_m + (top - start_elev_m) * i / bands
+        in_cloud = cloud_base is not None and z >= cloud_base
+        if in_cloud and enters_ft is None:
+            enters_ft = round(z * 3.28084)
+        rows.append({
+            "elev_ft": round(z * 3.28084),
+            "temp_f": round(c_to_f(a + b * z)),
+            "cloud": bool(in_cloud),
+        })
+    return {
+        "bands": rows,
+        "cloud_base_ft": round(cloud_base * 3.28084) if cloud_base is not None else None,
+        "enters_cloud_ft": enters_ft,
+    }
+
+
 def _cloud_base_m(all_fc: dict[str, LocationForecast], when: datetime) -> float | None:
     """Lifting condensation level (m MSL) from the lowest available anchor."""
     lowest: LocationForecast | None = None

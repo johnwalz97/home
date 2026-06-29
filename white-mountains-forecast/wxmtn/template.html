@@ -243,6 +243,33 @@ header.bar{
 /* ===== Planner view ===== */
 .planner-scroll{flex:1 1 auto; overflow-y:auto; padding:10px 12px 26px;}
 .plan-intro{font-family:var(--ui); font-size:12px; color:var(--txt2); line-height:1.45; margin:2px 4px 12px;}
+.aibrief{border:1px solid var(--cyan-dim); border-radius:8px; background:linear-gradient(180deg,rgba(54,214,231,.06),rgba(54,214,231,.01));
+  padding:11px 12px; margin:0 2px 14px;}
+.aibrief-tag{font-family:var(--disp); font-size:10px; letter-spacing:.16em; color:var(--cyan); margin-bottom:6px;}
+.aibrief-hl{font-family:var(--ui); font-size:14px; font-weight:600; color:var(--txt); line-height:1.35; margin-bottom:5px;}
+.aibrief-nar{font-family:var(--ui); font-size:12.5px; color:var(--txt2); line-height:1.5; margin-bottom:8px;}
+.aibrief .abk{font-family:var(--disp); font-size:9.5px; letter-spacing:.1em; color:var(--cyan); background:rgba(54,214,231,.1);
+  border:1px solid var(--cyan-dim); border-radius:4px; padding:1px 5px; margin-right:5px;}
+.aibrief-bet{font-family:var(--ui); font-size:12.5px; color:var(--txt); margin:7px 0; padding:7px 8px; background:var(--bg-inset); border-radius:6px;}
+.aibrief-bet .abwhy{color:var(--txt2); font-size:12px; line-height:1.45; margin-top:3px;}
+.aibrief-plan{font-family:var(--ui); font-size:12.5px; color:var(--txt2); line-height:1.45; margin:5px 0;}
+.aibrief-j{font-family:var(--ui); font-size:12px; color:var(--txt2); line-height:1.45; margin:3px 0 3px 2px;}
+.aibrief-haz{font-family:var(--ui); font-size:12px; color:#f2b441; line-height:1.45; margin:3px 0;}
+.aibrief-foot{font-family:var(--ui); font-size:10.5px; color:var(--txt4); line-height:1.4; margin-top:9px; padding-top:7px; border-top:1px solid var(--hair);}
+.ascent{border:1px solid var(--hair2); border-radius:6px; overflow:hidden; background:var(--bg-inset);}
+.asc-row{display:flex; align-items:center; gap:9px; padding:5px 9px; border-bottom:1px solid var(--hair); font-family:var(--mono); font-size:12px; font-feature-settings:var(--num);}
+.asc-row:last-child{border-bottom:none;}
+.asc-el{min-width:54px; color:var(--txt2);}
+.asc-dot{width:9px; height:9px; border-radius:50%; flex:none;}
+.asc-clear .asc-dot{background:var(--cyan);}
+.asc-cloud .asc-dot{background:#9aa7b2; box-shadow:0 0 0 2px rgba(154,167,178,.25);}
+.asc-tp{min-width:34px; color:var(--txt);}
+.asc-sky{flex:1; text-align:right; font-family:var(--ui); font-size:11px;}
+.asc-clear .asc-sky{color:var(--txt3);}
+.asc-cloud{background:rgba(154,167,178,.07);}
+.asc-cloud .asc-sky{color:#f0a36b;}
+.asc-note{font-family:var(--ui); font-size:11.5px; color:#f0a36b; line-height:1.4; margin-top:7px;}
+.asc-note.asc-ok{color:var(--ok);}
 .plan-intro b{color:var(--txt);}
 .plan-day{border:1px solid var(--hair2); border-radius:6px; margin-bottom:10px; overflow:hidden; background:var(--bg);}
 .plan-day-head{
@@ -889,12 +916,28 @@ function updateList(){ refreshList(); }
 
 /* ============================== Planner ============================== */
 let plannerOpenDay = 0;
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+function aiBriefHtml(){
+  const ai=D&&D.ai; if(!ai) return '';
+  let h='<div class="aibrief"><div class="aibrief-tag">◆ AI BRIEFING</div>';
+  if(ai.headline) h+='<div class="aibrief-hl">'+esc(ai.headline)+'</div>';
+  if(ai.narrative) h+='<div class="aibrief-nar">'+esc(ai.narrative)+'</div>';
+  if(ai.best_bet){ const b=ai.best_bet;
+    h+='<div class="aibrief-bet"><span class="abk">BEST BET</span> '+esc(b.peak)+' · '+esc(b.day)+' · '+esc(b.window)+
+       '<div class="abwhy">'+esc(b.why)+'</div></div>'; }
+  (ai.plan||[]).forEach(function(p){
+    h+='<div class="aibrief-plan"><span class="abk">'+esc(p.label)+'</span> '+esc(p.recommendation)+'</div>'; });
+  (ai.judgments||[]).forEach(function(j){ h+='<div class="aibrief-j">› '+esc(j)+'</div>'; });
+  (ai.hazards||[]).forEach(function(z){ h+='<div class="aibrief-haz">⚠ '+esc(z)+'</div>'; });
+  h+='<div class="aibrief-foot">expert read by '+esc(ai.model||'Claude')+' over the raw data — the deterministic forecast remains the source of truth</div>';
+  return h+'</div>';
+}
 function buildPlanner(){
   const wrap=$('#planner'); if(!wrap) return;
   const days=(D&&D.planner)||[];
   $('#planCount').textContent = days.length+' DAYS';
   if(!days.length){ wrap.innerHTML='<div class="list-empty">No multi-day planner data.</div>'; return; }
-  let html='<div class="plan-intro"><b>Which day should you go?</b> Each day is ranked by its best summits. Tap a peak to open its detail and jump the timeline to that day.</div>';
+  let html=aiBriefHtml()+'<div class="plan-intro"><b>Which day should you go?</b> Each day is ranked by its best summits. Tap a peak to open its detail and jump the timeline to that day.</div>';
   days.forEach(function(day,di){
     const top=day.top||[];
     const best=top[0];
@@ -965,6 +1008,22 @@ function selectPeak(p){
   updateMarkers();
   updateList();
 }
+function ascentHtml(p){
+  const a=p&&p.ascent; if(!a||!a.bands||!a.bands.length) return '';
+  const rows=a.bands.slice().reverse();   // summit at top, trailhead at bottom
+  let h='<div class="section-t">Ascent · weather as you climb'+(a.at?' · '+a.at:'')+'</div><div class="ascent">';
+  rows.forEach(function(b){
+    h+='<div class="asc-row '+(b.cloud?'asc-cloud':'asc-clear')+'">'+
+      '<span class="asc-el">'+(b.elev_ft||0).toLocaleString()+"'</span>"+
+      '<span class="asc-dot"></span>'+
+      '<span class="asc-tp">'+b.temp_f+'°</span>'+
+      '<span class="asc-sky">'+(b.cloud?'in cloud':'clear')+'</span>'+
+    '</div>';
+  });
+  if(a.enters_cloud_ft) h+='<div class="asc-note">⛅ You walk into the clouds around <b>'+a.enters_cloud_ft.toLocaleString()+" ft</b>"+(a.cloud_base_ft?' (cloud base ~'+a.cloud_base_ft.toLocaleString()+" ft)":'')+'.</div>';
+  else h+='<div class="asc-note asc-ok">Clear from trailhead to summit at this hour.</div>';
+  return h+'</div>';
+}
 function renderDetail(){
   if(!selPeak) return;
   const p=selPeak;
@@ -999,6 +1058,7 @@ function renderDetail(){
         '<span class="k">Access</span><span class="v">'+(p.trailhead||'—')+'</span>'+
         '<span class="k">Best Window</span><span class="v">'+(p.best_window||'—')+'</span>'+
       '</div>'+
+      ascentHtml(p)+
       '<div class="section-t">'+dayBounds.length+'-Day Score</div>'+
       '<div class="spark-wrap">'+
         '<svg id="spark" viewBox="0 0 360 74" preserveAspectRatio="none"></svg>'+
