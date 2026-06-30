@@ -81,11 +81,23 @@ def test_ascent_profile_enters_cloud():
     assert prof["enters_cloud_ft"] is not None
 
 
-def test_ai_briefing_none_without_key(monkeypatch=None):
+def test_ai_briefing_falls_back_to_committed():
+    """No key -> serve the committed same-day brief; none -> None."""
     import os
+    from pathlib import Path
     from wxmtn import ai
     os.environ.pop("ANTHROPIC_API_KEY", None)
-    assert ai.build_briefing({"peaks": []}) is None
+    saved = ai.COMMITTED
+    try:
+        ai.COMMITTED = Path("/nonexistent/ai_brief.json")
+        assert ai.build_briefing({"peaks": []}) is None
+        # round-trip: a committed same-day brief is served back
+        ai.COMMITTED = Path("/tmp/_wxmtn_test_brief.json")
+        ai.write_committed({"headline": "hi"})
+        b = ai.build_briefing({"peaks": []})
+        assert b and b["headline"] == "hi" and b["date"] == ai._today_edt()
+    finally:
+        ai.COMMITTED = saved
 
 
 def _anchor_fc(name, elev, temp_c, when):
