@@ -1,0 +1,40 @@
+{
+  "headline": "Thursday and Friday are the week's standout summit days \u2014 and with an Extreme Heat Watch on, the high peaks are the cool play, not the valleys.",
+  "narrative": "A hot, hazy stretch under an Extreme Heat Watch keeps low trailheads in the 80s while the summits stay 20\u201330\u00b0F cooler. Tuesday gives a solid window on the high Presidentials, Wednesday fogs them in completely (Washington reads 100% cloud), then Thursday\u2013Friday clear out broadly across the range for the best hiking of the week before Saturday slides back downhill.",
+  "best_bet": {
+    "peak": "Mount Moosilauke",
+    "day": "Thursday 7/2",
+    "window": "10am\u20134pm",
+    "why": "Broad bald summit scoring 96 with only ~47% cloud and comfortable mid-70s \u2014 the week's best mix of big views, low fog, and modest hazard."
+  },
+  "plan": [
+    {
+      "label": "Best all-around days",
+      "recommendation": "Thursday or Friday \u2014 Moosilauke, Carrigain, and the Franconia Ridge (Lafayette\u2013Lincoln) all run 93\u201396 with low cloud. This is the week's clear standout; plan the big objective here."
+    },
+    {
+      "label": "If you want the high Presidentials",
+      "recommendation": "Tuesday \u2014 Adams, Jefferson, and Washington clear into the 97\u2013100 range, but Washington carries ~51 mph gusts and afternoon thunder risk. Go early and watch the sky."
+    },
+    {
+      "label": "If you're out Wednesday",
+      "recommendation": "Skip the Presidentials \u2014 they're a guaranteed whiteout (Washington 100% cloud). Drop to a lower view peak: Chocorua, South Moat, or Black Cap (90\u201392), all below the deck."
+    },
+    {
+      "label": "Beat the heat",
+      "recommendation": "With the heat watch, the summits are the refuge, not the lowland trails. Save the low ledges (Welch\u2013Dickey, Chocorua) for early morning or a swim-hike; the valleys bake into the 80s by midday."
+    }
+  ],
+  "judgments": [
+    "Washington's 97 on Tuesday undersells the danger: 51 mph gusts, ~53% afternoon thunder odds, and full above-treeline exposure. The score says 'go'; the conditions say 'early and cautious, with a turnaround plan.'",
+    "Wednesday's lower-peak scores (Chocorua 92, the Moats/Black Cap ~90) are the genuine pick that day \u2014 the high summits sit fully in the cloud regardless of what their raw number suggests.",
+    "The low ledges' high scores ride on heat: Welch tops out near 84\u00b0F midweek. Great for a short morning or a dip, rough for a sustained climb under the heat watch."
+  ],
+  "hazards": [
+    "Extreme Heat Watch in effect \u2014 low trailheads and valleys are dangerously hot; carry extra water, start early, and remember the summits run 20\u201330\u00b0F cooler.",
+    "Presidentials midweek: gusts to ~51 mph and roughly 50% afternoon thunderstorm odds with full exposure above treeline \u2014 turn back if storms build.",
+    "Wednesday: the high peaks are fully fogged in (whiteout navigation risk on the open Presidential ridges)."
+  ],
+  "model": "Claude Opus 4.8 (this agent, on its daily run)",
+  "date": "2026-06-29"
+}

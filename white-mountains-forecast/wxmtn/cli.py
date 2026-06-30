@@ -50,6 +50,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="write a standalone interactive map report to PATH")
     ap.add_argument("--no-ai", action="store_true",
                     help="skip the AI briefing even if ANTHROPIC_API_KEY is set")
+    ap.add_argument("--ai-context", metavar="PATH",
+                    help="write the compacted forecast JSON (for the agent to brief over) and exit")
     ap.add_argument("--backtest", action="store_true",
                     help="log this hour vs KMWN and print the scoreboard")
     args = ap.parse_args(argv)
@@ -85,6 +87,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Backtest scoreboard: {board['samples']} samples, "
               f"temp MAE {board.get('temp_mae_f')}°F, "
               f"cloud accuracy {board.get('cloud_accuracy')}")
+        return 0
+
+    if args.ai_context:
+        from . import ai, webreport
+        spot_fc = fetch.fetch_all(peaks.SPOTS)
+        payload = webreport.build_payload(all_fc, summit_fc, times, spot_fc=spot_fc)
+        with open(args.ai_context, "w") as fh:
+            json.dump(ai.compact_context(payload), fh, indent=2)
+        print(f"Wrote AI context: {args.ai_context}", file=sys.stderr)
         return 0
 
     if args.html:

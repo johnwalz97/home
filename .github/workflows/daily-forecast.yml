@@ -6,6 +6,10 @@ on:
   schedule:
     - cron: "0 10 * * *"   # 10:00 UTC ≈ 6am ET
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "white-mountains-forecast/**"   # redeploy when the agent commits a fresh brief
 
 permissions:
   contents: read
@@ -27,15 +31,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      # Only needed for the optional AI briefing; the forecast itself is stdlib.
-      - name: Install AI SDK (optional)
-        run: pip install --quiet anthropic
-
+      # No secret needed: the AI briefing is written by the agent's daily run and
+      # committed to data/ai_brief.json; the build just reads it (stdlib only).
       - name: Build interactive report
         working-directory: white-mountains-forecast
         env:
           WXMTN_CONTACT: "github.com/${{ github.repository }} daily build"
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           mkdir -p "$GITHUB_WORKSPACE/_site"
           python -m wxmtn --hours 120 --step 1 --html "$GITHUB_WORKSPACE/_site/index.html"

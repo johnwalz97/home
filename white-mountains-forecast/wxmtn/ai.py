@@ -14,8 +14,37 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
 MODEL = "claude-opus-4-8"
+
+# A briefing the agent (this assistant) wrote on its daily run and committed.
+# Used when no ANTHROPIC_API_KEY is present — so the deploy needs no secret.
+COMMITTED = Path(__file__).resolve().parent.parent / "data" / "ai_brief.json"
+
+
+def _today_edt() -> str:
+    return datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+
+
+def load_committed() -> dict | None:
+    """Return the committed briefing if it exists and was written today (EDT)."""
+    try:
+        brief = json.loads(COMMITTED.read_text())
+    except (FileNotFoundError, ValueError):
+        return None
+    # Only serve a same-day briefing; a stale one is worse than none.
+    return brief if brief.get("date") == _today_edt() else None
+
+
+def write_committed(brief: dict) -> None:
+    """Persist a briefing (stamped with today's date) for the keyless build to pick up."""
+    brief = dict(brief)
+    brief["date"] = _today_edt()
+    COMMITTED.parent.mkdir(parents=True, exist_ok=True)
+    COMMITTED.write_text(json.dumps(brief, indent=2))
 
 SYSTEM = (
     "You are an expert White Mountains (New Hampshire) mountain-weather forecaster "
@@ -109,10 +138,20 @@ def _compact(payload: dict) -> dict:
     }
 
 
+def compact_context(payload: dict) -> dict:
+    """Public: the decision-relevant data the agent reasons over to write a brief."""
+    return _compact(payload)
+
+
 def build_briefing(payload: dict, *, model: str = MODEL) -> dict | None:
-    """Return the structured AI briefing, or None if unavailable/failed."""
+    """Return the structured AI briefing.
+
+    With an API key, calls Claude directly. Without one, falls back to the
+    committed same-day briefing the agent wrote on its daily run — so the
+    GitHub Pages build needs no secret.
+    """
     if not os.environ.get("ANTHROPIC_API_KEY"):
-        return None
+        return load_committed()
     try:
         import anthropic
     except ImportError:
