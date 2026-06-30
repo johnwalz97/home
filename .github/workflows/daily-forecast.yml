@@ -31,12 +31,19 @@ jobs:
         with:
           python-version: "3.11"
 
-      # No secret needed: the AI briefing is written by the agent's daily run and
-      # committed to data/ai_brief.json; the build just reads it (stdlib only).
+      # The AI briefing works two ways, in priority order:
+      #  1. If the ANTHROPIC_API_KEY secret is set, this build calls Claude itself
+      #     (fully hands-off, reliable daily) -- needs the anthropic SDK below.
+      #  2. Otherwise it reads a same-day data/ai_brief.json the agent committed.
+      # Either way the forecast itself is stdlib and the deploy needs no secret.
+      - name: Install AI SDK (only used if ANTHROPIC_API_KEY is set)
+        run: pip install --quiet anthropic || true
+
       - name: Build interactive report
         working-directory: white-mountains-forecast
         env:
           WXMTN_CONTACT: "github.com/${{ github.repository }} daily build"
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           mkdir -p "$GITHUB_WORKSPACE/_site"
           python -m wxmtn --hours 120 --step 1 --html "$GITHUB_WORKSPACE/_site/index.html"
